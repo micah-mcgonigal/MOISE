@@ -23,13 +23,12 @@ void Init(int setSampleRate) {
 	currentTime = 0;
 }
 
-double Test(float data[], int sampleTotal) {
+void FillWaveformData(float data[], int sampleTotal, int channels) {
 
 	for (int i = 0; i < sampleTotal; i += 2) {
-		data[i] = sin(2 * 3.14159265358979323846 * 440 * currentTime);
-		data[i+1] = sin(2 * 3.14159265358979323846 * 440 * currentTime);
+		for (int j = 0; j < channels; j++) {
+			data[i+j] = sin(2 * 3.14159265358979323846 * 440 * currentTime);
+		}
 		currentTime += timeAdvance;
 	}
-
-	return currentTime;
 }

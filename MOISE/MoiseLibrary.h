@@ -8,4 +8,4 @@
 
 extern "C" EXPORT void Init(int setSampleRate);
 
-extern "C" EXPORT double Test(float data[], int sampleTotal);
+extern "C" EXPORT void FillWaveformData(float data[], int sampleTotal, int channels);
