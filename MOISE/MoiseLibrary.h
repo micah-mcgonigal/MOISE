@@ -6,4 +6,6 @@
 #   define EXPORT __declspec(dllimport)
 #endif
 
-extern "C" EXPORT int Test();
+extern "C" EXPORT void Init(int setSampleRate);
+
+extern "C" EXPORT double Test(float data[], int sampleTotal);
