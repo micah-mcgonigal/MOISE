@@ -156,6 +156,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="MoiseLibrary.h" />
     <ClInclude Include="Moise_data.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>

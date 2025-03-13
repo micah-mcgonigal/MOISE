@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include "Moise_data.h"
+#include "MoiseLibrary.h"
 #include <iostream>
 
 int main() {
