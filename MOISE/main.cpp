@@ -3,7 +3,7 @@
 #include "pch.h"
 #include "Moise_data.h"
 #include "MoiseLibrary.h"
-#include "MoiseSynth.h"
+#include "MoiseSynth_SamplePlayer.h"
 #include <iostream>
 
 float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
@@ -28,7 +28,7 @@ void Init(int setSampleRate) {
 	timeAdvance = 1.0 / sampleRate;
 	currentTime = 0;
 
-	testSynth = MoiseSynth();
+	testSynth = MoiseSynth_SamplePlayer();
 	testSynth.Initialize(sampleRate, 2);
 }
 
