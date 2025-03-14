@@ -3,11 +3,17 @@
 #include "pch.h"
 #include "Moise_data.h"
 #include "MoiseLibrary.h"
+#include "MoiseSynth.h"
 #include <iostream>
+
+float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
+
+MoiseSynth testSynth;
 
 double currentTime;
 double timeAdvance;
 int sampleRate;
+
 
 int main() {
 	Track testTrack;
@@ -21,6 +27,9 @@ void Init(int setSampleRate) {
 	sampleRate = setSampleRate;
 	timeAdvance = 1.0 / sampleRate;
 	currentTime = 0;
+
+	testSynth = MoiseSynth();
+	testSynth.Initialize(sampleRate, 2);
 }
 
 int LoadPackage(Track* trackToLoad) {
@@ -29,9 +38,10 @@ int LoadPackage(Track* trackToLoad) {
 
 void FillWaveformData(float data[], int sampleTotal, int channels) {
 
-	for (int i = 0; i < sampleTotal; i += 2) {
+	for (int i = 0; i < sampleTotal; i += channels) {
+		float* newSample = testSynth.GetNextSample(timeAdvance);
 		for (int j = 0; j < channels; j++) {
-			data[i+j] = sin(2 * 3.14159265358979323846 * 440 * currentTime);
+			data[i+j] = newSample[j];
 		}
 		currentTime += timeAdvance;
 	}
