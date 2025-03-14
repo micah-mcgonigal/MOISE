@@ -10,7 +10,7 @@ double timeAdvance;
 int sampleRate;
 
 int main() {
-	track testTrack;
+	Track testTrack;
 	testTrack.commands->tick = 99;
 	std::cout << testTrack.commands->tick;
 
@@ -21,6 +21,10 @@ void Init(int setSampleRate) {
 	sampleRate = setSampleRate;
 	timeAdvance = 1.0 / sampleRate;
 	currentTime = 0;
+}
+
+int LoadPackage(Track* trackToLoad) {
+	return trackToLoad->commands[0].function;
 }
 
 void FillWaveformData(float data[], int sampleTotal, int channels) {

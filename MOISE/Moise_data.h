@@ -1,11 +1,11 @@
 #pragma once
 
-struct command {
+struct Command {
 	int tick;
 	int function;
 	int parameter;
 };
 
-struct track {
-	command commands[0];
+struct Track {
+	Command commands[0];
 };
