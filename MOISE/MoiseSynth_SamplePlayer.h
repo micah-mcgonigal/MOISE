@@ -28,10 +28,6 @@ public:
 	}
 };
 
-struct MOISE_SamplePlayer_SampleBank {
-	MOISE_SamplePlayer_Sample sample[1];
-};
-
 struct MOISE_SamplePlayer_Sample {
 	float waveform[1];
 	float rootFrequency;
@@ -41,6 +37,10 @@ struct MOISE_SamplePlayer_Sample {
 	int loopEnd;
 	MOISE_Note minNote;
 	MOISE_Note maxNote;
+};
+
+struct MOISE_SamplePlayer_SampleBank {
+	MOISE_SamplePlayer_Sample sample[1];
 };
 
 #endif // !MOISE_SYNTH_SAMPLEPLAYER_H
