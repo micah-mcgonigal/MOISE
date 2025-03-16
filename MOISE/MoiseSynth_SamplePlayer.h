@@ -28,4 +28,19 @@ public:
 	}
 };
 
+struct MOISE_SamplePlayer_SampleBank {
+	MOISE_SamplePlayer_Sample sample[1];
+};
+
+struct MOISE_SamplePlayer_Sample {
+	float waveform[1];
+	float rootFrequency;
+	float waveformRate;
+	float positionRate;
+	int loopStart;
+	int loopEnd;
+	MOISE_Note minNote;
+	MOISE_Note maxNote;
+};
+
 #endif // !MOISE_SYNTH_SAMPLEPLAYER_H
