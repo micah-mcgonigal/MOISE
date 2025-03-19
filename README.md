@@ -1,4 +1,6 @@
 MOISE (Musical, Open and Interactive Sequence Engine) is a music creation tool and playback engine. It's not only designed for the creation and playback of music tracks note-by-note at runtime, but also to allow highly controllable interactivity by allowing every single command to be given a condition that controls if and how it is called. This is the key of MOISE. With this capability music can easily be composed with dynamic features such as seamless transitions that maintain tempo between tracks, seamless endings that can trigger at any point in a song, key and tempo changes based on game conditions, changing melodies based on game conditions, synchronized music stings that override lead instruments, etc.
+
+MOISE is very early in development but I am open to contributions!
  
 Playing back individual notes at runtime allows for changes to music that would be completely impractical, if not impossible, to achieve with modern audio middleware such as Wwise and FMOD, as those are focused on streamed audio. Seamless transitions that could occur at the end of any measure in a track, for example, would require music files to be separated into individual measures. Changing tempo and pitch independently is impossible with streamed music without doing something drastic such as rendering every possible combination as individual streamed music files.
  
