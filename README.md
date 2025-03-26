@@ -25,9 +25,11 @@ Here are some more specific examples of how MOISE could be used to create a dyna
   - Basically impossible with streamed music.
 
 Breakdown
+
 The project is broken down into three parts: The editor, the engine and synths. The latter two are included in this repository. The editor is where MOISE sound packages are made. The engine is where these packages are played when integrated into games. Synths receive playback info from the engine to produce audio. MOISE sound packages contain not only music track information, but transition, ending, and marker information which can be used to call game functions in sync with the music.
 
 Inspiration
+
 MOISE is inspired by video games from back in the 80s and 90s that took advantage of synthesizers they were limited to at the time. Since synthesizers, MIDI and similar were the standard at the time, some developers created custom systems that could alter notes on the fly. The best example of this is probably iMUSE as used in Monkey Island 2:
 [iMUSE Demonstration 2 - Seamless Transitions](https://www.youtube.com/watch?v=7N41TEcjcvM)
  
