@@ -11,3 +11,5 @@ extern "C" EXPORT void Init(int setSampleRate);
 extern "C" EXPORT int LoadPackage(Track* trackToLoad);
 
 extern "C" EXPORT void FillWaveformData(float data[], int sampleTotal, int channels);
+
+extern "C" EXPORT float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleCount);

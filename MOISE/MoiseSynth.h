@@ -12,7 +12,7 @@ protected:
 	float currentSample[1];
 	float frequency = 440;
 	float pan = 0.5;
-	float currentPosition;
+	double currentPosition = 0;
 	float currentEnvelopePosition;
 	float currentEnvelopeValue;
 	int currentSamplePosition;
@@ -31,6 +31,10 @@ public:
 		sampleRate = setSampleRate;
 		channels = setChannels;
 		initialized = true;
+	}
+
+	virtual float GetWaveformValue(int sampleIndex) {
+		return -1;
 	}
 
 	virtual float* GetNextSample(double timeAdvance) {
