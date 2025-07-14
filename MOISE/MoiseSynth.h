@@ -9,7 +9,7 @@ class MoiseSynth {
 
 protected:
 	double currentTime;
-	float currentSample[1];
+	float currentSample[2];
 	float frequency = 440;
 	float pan = 0.5;
 	double currentPosition = 0;
