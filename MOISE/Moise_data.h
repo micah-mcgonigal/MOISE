@@ -7,7 +7,13 @@ struct Command {
 };
 
 struct Track {
-	Command commands[0];
+    Command* command;
+    int commandCount;
+};
+
+struct Composition {
+    Track* track;
+    int trackCount;
 };
 
 enum MOISE_Note

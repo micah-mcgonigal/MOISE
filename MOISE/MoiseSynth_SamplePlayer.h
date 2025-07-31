@@ -70,24 +70,12 @@ public:
 		return currentSample;
 	}
 
-	/*
-	{ Old unity version for reference
-            envelope.update();
-            currentSamplePosition = Mathf.FloorToInt(currentPosition);
+	virtual void NoteOn(int value) override {
+		MoiseSynth::NoteOn(value);
 
-            float centerSample = sample[currentSample].DataAt(currentSamplePosition) * envelope.Value;
-            leftSample = centerSample * Mathf.Cos(pan * (Mathf.PI / 2));
-            rightSample = centerSample * Mathf.Sin(pan * (Mathf.PI / 2));
-
-            currentPosition += sample[currentSample].PositionRate * (frequency / sample[currentSample].rootFrequency);
-
-            if (currentPosition >= sample[currentSample].loopEnd)
-            {
-                currentPosition = sample[currentSample].loopStart;
-            }
-
-        }
-	*/
+		//In the future, I will select the sample to use based on the value, as there can be multiple samples in a bank.
+		//Refer to old MOISE Unity project.
+	}
 };
 
 #endif // !MOISE_SYNTH_SAMPLEPLAYER_H

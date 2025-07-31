@@ -30,6 +30,7 @@ public:
 	void Initialize(int setSampleRate, int setChannels) {
 		sampleRate = setSampleRate;
 		channels = setChannels;
+		stepHz = std::pow(2.0, 1.0 / 12.0); 
 		initialized = true;
 	}
 
@@ -39,12 +40,19 @@ public:
 
 	virtual float* GetNextSample(double timeAdvance) {
 		for (int i = 0; i < channels; i++) {
-			currentSample[i] = std::sin(2 * 3.14159265358979323846 * 440 * currentTime);
+			currentSample[i] = std::sin(2 * 3.14159265358979323846 * frequency * currentTime);
 		}
 
 		currentTime += timeAdvance;
 		
 		return currentSample;
+	}
+
+	virtual void NoteOn(int value) {
+		active = true;
+		frequency = 440 * std::pow(stepHz, value);
+		currentValue = value;
+		currentPosition = 0;
 	}
 };
 
