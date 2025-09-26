@@ -7,8 +7,8 @@
 struct MOISE_SamplePlayer_Sample {
 	float *waveform; //Pointer to an array of floats representing the waveform of the sample.
 	float rootFrequency; //The frequency at which the sample was recorded.
-	float waveformRate; //The sample rate of the waveform.
-	float positionRate; //Also the sample rate of the waveform? I can't remember why both of these variables exist.
+	float waveformRate; //The base sample rate of the waveform.
+	float positionRate; //The adjusted sample rate of the waveform based on the current sample rate of the MOISE engine and the waveformRate.
 	int loopStart; //The sample index at which the sample's loop starts.
 	int loopEnd; //The sample index at which the sample's loop ends.
 	//MOISE_Note minNote; //The minimum MOISE_Note value that can trigger this sample.
