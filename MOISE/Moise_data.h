@@ -1,21 +1,25 @@
 #pragma once
 
+//A MOISE command stores the tick it occurs on, the value of the function it is to call and the value of its parameter.
 struct Command {
 	int tick;
 	int function;
 	int parameter;
 };
 
+//A track stores a pointer to an array of commands and the number of commands it contains.
 struct Track {
     Command* command;
     int commandCount;
 };
 
+//A composition stores a pointer to an array of tracks and the number of tracks it contains.
 struct Composition {
     Track* track;
     int trackCount;
 };
 
+//This enum stores the step value of each note on the chromatic scale, with A4 (440Hz) being the base value.
 enum MOISE_Note
 {
 	c0 = -57,

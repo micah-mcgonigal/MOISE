@@ -6,6 +6,8 @@
 #   define EXPORT __declspec(dllimport)
 #endif
 
+//Exporting functions for use via the .dll.
+
 extern "C" EXPORT void Init(int setSampleRate);
 
 extern "C" EXPORT int LoadPackage(Track* trackToLoad);
