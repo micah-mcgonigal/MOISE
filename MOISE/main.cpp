@@ -4,6 +4,8 @@
 #include "Moise_data.h"
 #include "MoiseSynth_SamplePlayer.h"
 #include "MoiseLibrary.h"
+#include "json.hpp"
+#include <string>
 #include <iostream>
 #include <queue>
 
