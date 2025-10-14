@@ -94,8 +94,8 @@ float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleC
 }
 
 
-float LoadSamplePlayerSynthFromFile(char* jsonPath, char* pcmRootPath) {
-	testSynth = new MoiseSynth_SamplePlayer(jsonPath, pcmRootPath);
+float LoadSamplePlayerSynthFromFile(char* jsonPath, char* waveformRootPath) {
+	testSynth = new MoiseSynth_SamplePlayer(jsonPath, waveformRootPath);
 	testSynth->Initialize(sampleRate, 2);
 	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes, to mirror LoadSamplePlayerSynth().
 }
