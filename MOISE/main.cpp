@@ -4,8 +4,6 @@
 #include "Moise_data.h"
 #include "MoiseSynth_SamplePlayer.h"
 #include "MoiseLibrary.h"
-#include "json.hpp"
-#include <string>
 #include <iostream>
 #include <queue>
 
@@ -93,6 +91,13 @@ float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleC
 	testSynth = new MoiseSynth_SamplePlayer(data, waveformSampleCount);
 	testSynth->Initialize(sampleRate, 2);
 	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes.
+}
+
+
+float LoadSamplePlayerSynthFromFile(char* jsonPath, char* pcmRootPath) {
+	testSynth = new MoiseSynth_SamplePlayer(jsonPath, pcmRootPath);
+	testSynth->Initialize(sampleRate, 2);
+	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes, to mirror LoadSamplePlayerSynth().
 }
 
 /// <summary>
