@@ -1,4 +1,6 @@
 #pragma once
+
+#include "Moise_data.h"
 #include "MoiseSynth.h"
 
 #include <fstream>
@@ -13,8 +15,11 @@
 
 using json = nlohmann::json;
 
+/// <summary>
+/// A sample struct contains all the data necessary for playback of a sample.
+/// </summary>
 struct MOISE_SamplePlayer_Sample {
-	float *waveform; //Pointer to an array of floats representing the waveform of the sample.
+	std::vector<float> waveform; //Buffer of floats representing the waveform of the sample.
 	float rootFrequency; //The frequency at which the sample was recorded.
 	float waveformRate; //The base sample rate of the waveform.
 	float positionRate; //The adjusted sample rate of the waveform based on the current sample rate of the MOISE engine and the waveformRate.
@@ -23,10 +28,11 @@ struct MOISE_SamplePlayer_Sample {
 	//MOISE_Note minNote; //The minimum MOISE_Note value that can trigger this sample.
 	//MOISE_Note maxNote; //The maximum MOISE_Note value that can trigger this sample.
 	int waveformLength; //The length of the waveform (in samples).
-	std::string waveformPath; //The relative path to the waveform, relative to the samples root path.
+	int waveformChunkStart; //The index (in bytes) that this sample's waveform data starts at, within the sample bank file.
+	std::string name; //The name of this sample.
 };
 
-// This allows us to deserialize JSON directly into our MOISE_SamplePlayer_Sample struct
+//This allows us to deserialize JSON directly into our MOISE_SamplePlayer_Sample struct
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	MOISE_SamplePlayer_Sample,
 	rootFrequency,
@@ -35,7 +41,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	loopStart,
 	loopEnd,
 	waveformLength,
-	waveformPath)
+	waveformChunkStart,
+	name)
 
 /// <summary>
 /// A sample bank represents a collection of samples that can be used depending on the note being played. For example, a piano sample bank may contain different samples for each octave of the piano keyboard.
@@ -45,14 +52,23 @@ struct MOISE_SamplePlayer_SampleBank {
 	MOISE_SamplePlayer_Sample sample[1];
 };
 
+/// <summary>
+/// A sample player is a MOISE synthesizer that implements sample playback.
+/// </summary>
 class MoiseSynth_SamplePlayer : public MoiseSynth {
 
 private:
-	MOISE_SamplePlayer_Sample sampleData; //Sample data for this player.
-	std::vector<float> waveform; //Buffer of floats that holds the waveform data for this sample.
+	std::vector<MOISE_SamplePlayer_Sample> sampleBank = {}; //Sample bank for this sample player.
+	Envelope defaultEnvelope = {}; //Default envelope for this sample player.
 
 public:
-	int activeSampleId = 0; //The ID of the sample to use for when sample banks are in use.
+	int activeSampleId = 0; //The ID of the sample to use for when sample banks are in use. Currently this corresponds to an index into the sample bank.
+	bool hasPlayedFirstNoteOn = false; //Whether or not we've played our first NoteOn()
+
+	/// <summary>
+	/// Default constructor for a sample player.
+	/// </summary>
+	MoiseSynth_SamplePlayer() {}
 
 	/// <summary>
 	/// Loads sample data from memory when creating an instance of the sample player synth.
@@ -60,7 +76,7 @@ public:
 	/// <param name="data">Sample data pointer</param>
 	/// <param name="waveformSampleCount">The number of samples in the provided sample data waveform</param>
 	MoiseSynth_SamplePlayer(MOISE_SamplePlayer_Sample* data, int waveformSampleCount) {
-		sampleData = *data;
+		sampleBank.push_back(*data);
 		
 		//for (int i = 0; i < waveformSampleCount; i++) {
 		//	sampleData.waveform[i] = -1 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1 - -1)));
@@ -68,94 +84,90 @@ public:
 	}
 
 	/// <summary>
-	/// Loads sample data from a JSON file when creating an instance of the sample player synth.
-	/// NOTE: Currently this JSON file represents a track, which then holds a sample (along with a path to the waveform
-	///       itself) -- eventually this file will likely represent an entire package, in which case the JSON parsing
-	///       can happen on the package level, and this MoiseSynth_SamplePlayer constructor can be rewritten to accept
-	///       a JSON object instead of a JSON file path. We may also want to decouple samples from tracks, depending on
-	///       the use cases.
+	/// Set the default envelope for this sample player.
 	/// </summary>
-	/// <param name="jsonPath">The path to the JSON file that holds the sample data</param>
-	/// <param name="waveformRootPath">The root path for waveform data</param>
-	MoiseSynth_SamplePlayer(char* jsonPath, char* waveformRootPath) {
-		// --------
-		// Sample metadata (from JSON)
-
-		// Load JSON data from file
-		std::ifstream jsonIn(jsonPath);
-		if (!json::accept(jsonIn)) {
-			std::cerr << "MoiseSynth_SamplePlayer: Couldn't load JSON data at " << jsonPath << std::endl;
-			return;
-		}
-		jsonIn.seekg(0, std::ios::beg);
-		json jsonData = json::parse(jsonIn);
-
-		// Get sample data from the track JSON
-		if (!jsonData.contains("sample")) {
-			std::cerr << "MoiseSynth_SamplePlayer: No sample contained in JSON data at " << jsonPath << std::endl;
-			return;
-		}
-		json sampleDataJson = jsonData.at("sample");
-		sampleData = sampleDataJson.get<MOISE_SamplePlayer_Sample>();
-
-		// --------
-		// Sample waveform (from binary)
-
-		// TODO: Use std::filesystem::path::preferred_separator (requires C++17)
-#ifdef _WIN32
-		static char pathSeparator = '\\';
-#else
-		static char pathSeparator = '/';
-#endif
-
-		// Construct full path to waveform file
-		std::ifstream waveformIn;
-		std::string waveformPathString = std::string(waveformRootPath);
-		waveformPathString += pathSeparator + sampleData.waveformPath;
-		const char* waveformPath = waveformPathString.c_str();
-
-		// Open waveform file
-		waveformIn.open(waveformPath, std::ios::binary);
-		if (!waveformIn.good()) {
-			std::cerr << "MoiseSynth_SamplePlayer: Invalid sample waveform path " << waveformPath << std::endl;
-			return;
-		}
-
-		// Resize waveform buffer
-		waveform.resize(sampleData.waveformLength);
-
-		// Load waveform file's data into our waveform buffer
-		if (!waveformIn.read(reinterpret_cast<char*>(waveform.data()), sampleData.waveformLength * sizeof(float))) {
-			std::cerr << "MoiseSynth_SamplePlayer: Failed to load sample waveform data at " << waveformPath << std::endl;
-		}
-
-		// Set our sample data's waveform to point directly to our own waveform buffer
-		sampleData.waveform = waveform.data();
+	/// <param name="inEnvelope">The default envelope</param>
+	void SetDefaultEnvelope(const Envelope& inEnvelope) {
+		defaultEnvelope = inEnvelope;
 	}
 
 	/// <summary>
-/// Initializes the synth with the provided sample rate and number of channels.
-/// </summary>
-/// <param name="setSampleRate">The sample rate of the synth</param>
-/// <param name="setChannels">The number of channels of the synth</param>
+	/// Load a sample into this sample player's sample bank.
+	/// </summary>
+	/// <param name="inSampleData">The sample data that defines the sample.</param>
+	/// <param name="inSampleBankFileStream">The input file stream that holds the sample bank's waveform data.</param>
+	void LoadSampleIntoBank(const MOISE_SamplePlayer_Sample& inSampleData, std::ifstream& inSampleBankFileStream) {
+		// --------
+		// Copy sample data
+
+		MOISE_SamplePlayer_Sample sampleData = inSampleData;
+
+		// --------
+		// Get waveform from sample bank
+
+		// Seek to waveform chunk
+		inSampleBankFileStream.seekg(sampleData.waveformChunkStart);
+
+		// Resize waveform buffer
+		sampleData.waveform.resize(sampleData.waveformLength);
+
+		// Load waveform file's data into our waveform buffer
+		if (!inSampleBankFileStream.read(reinterpret_cast<char*>(sampleData.waveform.data()), sampleData.waveformLength * sizeof(float))) {
+			std::cerr << "MoiseSynth_SamplePlayer: Failed to load sample waveform data at waveformChunkStart " << sampleData.waveformChunkStart << std::endl;
+		}
+
+		// Add sample to bank
+		sampleBank.push_back(sampleData);
+	}
+
+	/// <summary>
+	/// Initializes the synth with the provided sample rate and number of channels.
+	/// </summary>
+	/// <param name="setSampleRate">The sample rate of the synth</param>
+	/// <param name="setChannels">The number of channels of the synth</param>
 	void Initialize(int setSampleRate, int setChannels) {
 		sampleRate = setSampleRate;
 		channels = setChannels;
 		initialized = true;
+		hasPlayedFirstNoteOn = false;
 	}
 
 	/// <summary>
-/// Used for testing purposes. This returns the value of the waveform at the provided sample index.
-/// </summary>
-/// <param name="sampleIndex">The sample index to check</param>
-/// <returns></returns>
-	float GetWaveformValue(int sampleIndex) override{
+	/// Used for testing purposes. This returns the value of the waveform at the provided sample index.
+	/// </summary>
+	/// <param name="sampleIndex">The sample index to check</param>
+	/// <returns></returns>
+	float GetWaveformValue(int sampleIndex) override {
+		if (sampleBank.size() < 1) {
+			return 0.f;
+		}
+
+		//Get active sample data
+		const MOISE_SamplePlayer_Sample& sampleData = sampleBank[activeSampleId];
+
+		if (sampleData.waveform.size() <= sampleIndex) {
+			return 0.f;
+		}
+
+		//Get value at the given index in the sample data's waveform
 		return sampleData.waveform[sampleIndex];
 	}
 
+	/// <summary>
+	/// Get the next sample based on amount of time to advance.
+	/// </summary>
+	/// <param name="timeAdvance">The amount of time to advance.</param>
+	/// <returns>A pointer to the next sample</returns>
 	virtual float* GetNextSample(double timeAdvance) override {
-		//Get the current sample position by flooring the current precise position.
-		currentSamplePosition = std::floor(currentPosition);
+		if (sampleBank.size() < 1) {
+			return nullptr;
+		}
+
+		//Get active sample data
+		const MOISE_SamplePlayer_Sample& sampleData = sampleBank[activeSampleId];
+
+		//Get the current sample position by flooring the current precise position (with modulo to ensure position is within sample waveform bounds).
+		currentSamplePosition = static_cast<int>(std::floor(currentPosition)) % sampleData.waveform.size();
 
 		//Get a sample from the waveform data at the currentSamplePosition.
 		float centerSample = sampleData.waveform[currentSamplePosition];
@@ -167,7 +179,8 @@ public:
 
 		//Advance the current position based on the frequency being played, the rate, and the sample's root frequency.
 		currentPosition += sampleData.positionRate * (frequency / sampleData.rootFrequency);
-		while (currentPosition >= sampleData.loopEnd) {
+		while (currentPosition >= sampleData.loopEnd &&
+			   sampleData.loopStart < sampleData.loopEnd) { //Prevent infinite loop in the case that loopStart >= loopEnd
 			//Smoothly loop the sample back to the loop start point.
 			currentPosition -= (sampleData.loopEnd - sampleData.loopStart);
 		}
@@ -176,11 +189,23 @@ public:
 		return currentSample;
 	}
 
+	/// <summary>
+	/// Activates the sample player voice and sets the note it's playing to the given value, while also selecting the appropriate sample based on the value.
+	/// </summary>
+	/// <param name="value"></param>
 	virtual void NoteOn(int value) override {
 		MoiseSynth::NoteOn(value);
 
 		//In the future, I will select the sample to use based on the value, as there can be multiple samples in a bank.
 		//Refer to old MOISE Unity project.
+
+		// For now, for testing, cycle through the samples in the bank after the first NoteOn() (so that we still start with the first sample)
+		if (hasPlayedFirstNoteOn) {
+			activeSampleId = (activeSampleId + 1) % sampleBank.size();
+		}
+		else {
+			hasPlayedFirstNoteOn = true;
+		}
 	}
 };
 
