@@ -10,6 +10,9 @@
 //stepHz is a constant used to calculate the frequency of a note based on its MOISE_Note value
 float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
 
+//Loaded synth instances
+std::vector<std::unique_ptr<MoiseSynth>> synths = {};
+
 //Pointer to a test synth instance
 MoiseSynth* testSynth;
 
@@ -70,6 +73,9 @@ void Init(int setSampleRate) {
 	currentComposition.track[0].command[7].tick = (7 * 64) - 1;
 
 	//testSynth->Initialize(sampleRate, 2);
+
+	//Clear all synths
+	synths.clear();
 }
 
 /// <summary>
@@ -82,6 +88,111 @@ int LoadPackage(Track* trackToLoad) {
 }
 
 /// <summary>
+/// Load a package from file paths (package file + sample bank file).
+/// </summary>
+/// <param name="packagePath">The path to the packakge file</param>
+/// <param name="sampleBankPath">The path to the sample bank file</param>
+/// <returns>0 if no errors occurred while loading, 1 if errors occurred</returns>
+int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
+	// --------
+	// Sample bank (from binary)
+
+	// TODO: Use std::filesystem::path::preferred_separator (requires C++17)
+#ifdef _WIN32
+	static char pathSeparator = '\\';
+#else
+	static char pathSeparator = '/';
+#endif
+
+	// Open sample bank file
+	std::ifstream sampleBankIn;
+	sampleBankIn.open(sampleBankPath, std::ios::binary);
+	if (!sampleBankIn.good()) {
+		std::cerr << "LoadPackageFromFile: Invalid sample bank path " << sampleBankPath << std::endl;
+		return 1;
+	}
+
+	// --------
+	// Package metadata (from JSON)
+
+	// Load JSON data from file
+	std::ifstream jsonIn(packagePath);
+	if (!json::accept(jsonIn)) {
+		std::cerr << "LoadPackageFromFile: Couldn't load JSON data at " << packagePath << std::endl;
+		return 1;
+	}
+	jsonIn.seekg(0, std::ios::beg);
+	json jsonData = json::parse(jsonIn);
+
+	// Get synth data from the package JSON
+	if (!jsonData.contains("instruments")) {
+		std::cerr << "LoadPackageFromFile: No instruments/synths contained in JSON data at " << packagePath << std::endl;
+		return 1;
+	}
+
+	// --------
+	// Synths/instruments (using both package data and sample bank)
+
+	std::vector<json> instrumentsJson = jsonData.at("instruments").get<std::vector<json>>();
+
+	for (const auto& instrumentJson : instrumentsJson) {
+		// Get default envelope
+		if (!instrumentJson.contains("defaultEnvelope")) {
+			std::cerr << "LoadPackageFromFile: No default envelope found in instrument " << instrumentJson.dump() << std::endl;
+			continue;
+		}
+		Envelope defaultEnvelope = instrumentJson.at("defaultEnvelope").get<Envelope>();
+
+		// Get sample bank
+		if (!instrumentJson.contains("sampleBank")) {
+			std::cerr << "LoadPackageFromFile: No sample bank found in instrument " << instrumentJson.dump() << std::endl;
+			continue;
+		}
+		std::vector<json> sampleBankJson = instrumentJson.at("sampleBank").get<std::vector<json>>();
+
+		if (sampleBankJson.size() < 1) {
+			std::cout << "LoadPackageFromFile: Sample bank is empty for instrument " << instrumentJson.dump() << std::endl;
+			continue;
+		}
+
+		// Create new sample player synth for instrument
+		synths.push_back(std::make_unique<MoiseSynth_SamplePlayer>());
+		MoiseSynth_SamplePlayer* samplePlayerSynth = static_cast<MoiseSynth_SamplePlayer*>(synths.back().get());
+		if (!samplePlayerSynth) {
+			std::cerr << "LoadPackageFromFile: Unable to create sample player for instrument " << instrumentJson.dump() << std::endl;
+			continue;
+		}
+
+		// Set default envelope
+		samplePlayerSynth->SetDefaultEnvelope(defaultEnvelope);
+
+		// Load samples into bank
+		for (const auto& sampleJson : sampleBankJson) {
+			MOISE_SamplePlayer_Sample sampleData = sampleJson.get<MOISE_SamplePlayer_Sample>();
+			samplePlayerSynth->LoadSampleIntoBank(sampleData, sampleBankIn);
+		}
+
+		// Initialize sample player
+		samplePlayerSynth->Initialize(sampleRate, 2);
+	}
+
+	// --------
+	// Test synth
+
+	// TODO: Assign test synth more meaningfully -- currently we just take the first available synth
+	if (synths.size() > 0) {
+		testSynth = synths[0].get();
+	}
+	else {
+		std::cout << "LoadPackageFromFile: No synths loaded!" << std::endl;
+	}
+
+	// --------
+
+	return 0;
+}
+
+/// <summary>
 /// Loads a sample player MOISE synth with the provided sample data.
 /// </summary>
 /// <param name="data">Pointer to MOISE_SamplePlayer_Sample data, which determines the sample's waveform and meta data, such as loop points.</param>
@@ -91,13 +202,6 @@ float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleC
 	testSynth = new MoiseSynth_SamplePlayer(data, waveformSampleCount);
 	testSynth->Initialize(sampleRate, 2);
 	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes.
-}
-
-
-float LoadSamplePlayerSynthFromFile(char* jsonPath, char* waveformRootPath) {
-	testSynth = new MoiseSynth_SamplePlayer(jsonPath, waveformRootPath);
-	testSynth->Initialize(sampleRate, 2);
-	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes, to mirror LoadSamplePlayerSynth().
 }
 
 /// <summary>
@@ -166,4 +270,17 @@ int FillWaveformData(float data[], int sampleTotal, int channels) {
 
 	//Returns the current tick in order to easily view the progression of time in the MOISE editor.
 	return currentTick;
+}
+
+/// <summary>
+/// Get the test synth's first sample's waveform value at a specific sample index.
+/// </summary>
+/// <param name="sampleIndex">The sample index</param>
+/// <returns>The waveform value</returns>
+float GetTestSynthWaveformValue(int sampleIndex) {
+	if (!testSynth) {
+		return -1.f;
+	}
+
+	return testSynth->GetWaveformValue(sampleIndex);
 }

@@ -1,5 +1,9 @@
 #pragma once
 
+#include "json.hpp"
+
+using json = nlohmann::json;
+
 //A MOISE command stores the tick it occurs on, the value of the function it is to call and the value of its parameter.
 struct Command {
 	int tick;
@@ -18,6 +22,24 @@ struct Composition {
     Track* track;
     int trackCount;
 };
+
+//An envelope defines ADSR parameters for a synth.
+struct Envelope {
+	float attack;
+	float attackDecay;
+	float sustain;
+	float sustainDecay;
+	float release;
+};
+
+//This allows us to deserialize JSON directly into our Envelope struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Envelope,
+	attack,
+	attackDecay,
+	sustain,
+	sustainDecay,
+	release)
 
 //This enum stores the step value of each note on the chromatic scale, with A4 (440Hz) being the base value.
 enum MOISE_Note
