@@ -4,24 +4,63 @@
 
 using json = nlohmann::json;
 
-//A MOISE command stores the tick it occurs on, the value of the function it is to call and the value of its parameter.
+//Conditions are used by commands to determine if they should be executed or not based on the value of global variables.
+struct Condition {
+	std::string variableName;
+};
+
+//This allows us to deserialize JSON directly into our Condition struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Condition,
+	variableName)
+
+//A MOISE command stores the tick it occurs on, its conditions, the value of the function it is to call and the values of its parameters.
 struct Command {
 	int tick;
+	std::vector<Condition> conditions;
 	int function;
-	int parameter;
+	std::vector<float> floatParameters;
+	std::vector<int> intParameters;
 };
 
-//A track stores a pointer to an array of commands and the number of commands it contains.
+//This allows us to deserialize JSON directly into our Command struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Command,
+	tick,
+	conditions,
+	function,
+	floatParameters,
+	intParameters)
+
+//A track stores a vector of commands and the number of commands it contains.
 struct Track {
-    Command* command;
-    int commandCount;
+    std::vector<Command> commands;
 };
 
-//A composition stores a pointer to an array of tracks and the number of tracks it contains.
+//This allows us to deserialize JSON directly into our Track struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Track,
+	commands)
+
+//A composition stores a vector of tracks and the number of tracks it contains.
 struct Composition {
-    Track* track;
-    int trackCount;
+    std::vector<Track> tracks;;
 };
+
+//This allows us to deserialize JSON directly into our Composition struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Composition,
+	tracks)
+
+//A song stores a vector of compositions
+struct Song {
+	std::vector<Composition> compositions;
+};
+
+//This allows us to deserialize JSON directly into our Song struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Song,
+	compositions)
 
 //An envelope defines ADSR parameters for a synth.
 struct Envelope {

@@ -36,42 +36,6 @@ void Init(int setSampleRate) {
 	timeAdvance = 1.0 / sampleRate;
 	currentTime = 0;
 
-	//Hard coding a composition for testing purposes. This is why the editor is needed!
-	currentComposition.track = new Track[1];
-	currentComposition.track[0].command = new Command[8];
-
-	currentComposition.track[0].command[0].function = 1;
-	currentComposition.track[0].command[0].parameter = 0;
-	currentComposition.track[0].command[0].tick = 0;
-
-	currentComposition.track[0].command[1].function = 1;
-	currentComposition.track[0].command[1].parameter = 1*8;
-	currentComposition.track[0].command[1].tick = 1*64;
-
-	currentComposition.track[0].command[2].function = 1;
-	currentComposition.track[0].command[2].parameter = 2 * 8;
-	currentComposition.track[0].command[2].tick = 2 * 64;
-
-	currentComposition.track[0].command[3].function = 1;
-	currentComposition.track[0].command[3].parameter = 3 * 8;
-	currentComposition.track[0].command[3].tick = 3 * 64;
-
-	currentComposition.track[0].command[4].function = 1;
-	currentComposition.track[0].command[4].parameter = 4 * 8;
-	currentComposition.track[0].command[4].tick = 4 * 64;
-
-	currentComposition.track[0].command[5].function = 1;
-	currentComposition.track[0].command[5].parameter = 5 * 8;
-	currentComposition.track[0].command[5].tick = 5 * 64;
-
-	currentComposition.track[0].command[6].function = 1;
-	currentComposition.track[0].command[6].parameter = 6 * 8;
-	currentComposition.track[0].command[6].tick = 6 * 64;
-
-	currentComposition.track[0].command[7].function = 1;
-	currentComposition.track[0].command[7].parameter = 6 * 8;
-	currentComposition.track[0].command[7].tick = (7 * 64) - 1;
-
 	//testSynth->Initialize(sampleRate, 2);
 
 	//Clear all synths
@@ -84,7 +48,7 @@ void Init(int setSampleRate) {
 /// <param name="trackToLoad">Pointer of the track to check.</param>
 /// <returns>The integer value of command[0]'s function.</returns>
 int LoadPackage(Track* trackToLoad) {
-	return trackToLoad->command[0].function;
+	return trackToLoad->commands[0].function;
 }
 
 /// <summary>
@@ -188,6 +152,33 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 	}
 
 	// --------
+	//Load composition data from the package JSON
+	if (!jsonData.contains("songs")) {
+		std::cerr << "LoadPackageFromFile: No songs contained in JSON data at " << packagePath << std::endl;
+		return 1;
+	}
+
+	std::vector<json> songsJson = jsonData.at("songs").get<std::vector<json>>();
+
+	for (const auto &songJson : songsJson) { //Load all songs in the package
+		// For testing purposes, we will just load the first composition of the first song
+		if (!songJson.contains("compositions")) {
+			std::cerr << "LoadPackageFromFile: No compositions contained in song " << songJson.dump() << std::endl;
+			continue;
+		}
+
+		std::vector<json> compositionsJson = songJson.at("compositions").get<std::vector<json>>();
+
+		for (const auto &compositionJson : compositionsJson) {
+			if (!compositionJson.contains("tracks")) {
+				std::cerr << "LoadPackageFromFile: No tracks contained in composition " << compositionJson.dump() << std::endl;
+				continue;
+			}
+
+			currentComposition = compositionJson.get<Composition>();
+		}
+
+	}
 
 	return 0;
 }
@@ -215,7 +206,7 @@ void ProcessCommand(Command command, int track) {
 		// Implement Note Off logic here
 		break;
 	case 1: // Note On
-		testSynth->NoteOn(command.parameter);
+		testSynth->NoteOn(command.intParameters[0]);
 		break;
 	default:
 		std::cerr << "Unknown command function: " << command.function << std::endl;
@@ -236,14 +227,10 @@ int FillWaveformData(float data[], int sampleTotal, int channels) {
 
 		//Hard coded queue filling for testing purposes.
 		if (commandQueue.empty()) {
-			commandQueue.push(currentComposition.track[0].command[0]);
-			commandQueue.push(currentComposition.track[0].command[1]);
-			commandQueue.push(currentComposition.track[0].command[2]);
-			commandQueue.push(currentComposition.track[0].command[3]);
-			commandQueue.push(currentComposition.track[0].command[4]);
-			commandQueue.push(currentComposition.track[0].command[5]);
-			commandQueue.push(currentComposition.track[0].command[6]);
-			commandQueue.push(currentComposition.track[0].command[7]);
+			for (int i = 0; i < currentComposition.tracks[0].commands.size(); i++) {
+				commandQueue.push(currentComposition.tracks[0].commands[i]);
+			}
+
 			preciseTick = 0.0;
 		}
 
