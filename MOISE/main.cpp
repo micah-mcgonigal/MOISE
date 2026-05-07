@@ -13,9 +13,6 @@ float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
 //Loaded synth instances
 std::vector<std::unique_ptr<MoiseSynth>> synths = {};
 
-//Pointer to a test synth instance
-MoiseSynth* testSynth;
-
 //A queue used to manage commands as loaded in each playing track.
 std::queue<Command> commandQueue;
 
@@ -25,6 +22,7 @@ Composition currentComposition;
 double currentTime, preciseTick; //Currrent time in seconds and ticks. Ticks are to be determined by a ticks-per-measure value.
 double timeAdvance; //Holds the amount of time to advance for each sample.
 int sampleRate, currentTick, lastTick;
+bool playing = false, compositionReady = false;
 
 int main() {
 	return 0;
@@ -144,10 +142,7 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 	// Test synth
 
 	// TODO: Assign test synth more meaningfully -- currently we just take the first available synth
-	if (synths.size() > 0) {
-		testSynth = synths[0].get();
-	}
-	else {
+	if (synths.size() <= 0) {
 		std::cout << "LoadPackageFromFile: No synths loaded!" << std::endl;
 	}
 
@@ -176,6 +171,7 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 			}
 
 			currentComposition = compositionJson.get<Composition>();
+			compositionReady = true;
 		}
 
 	}
@@ -183,16 +179,13 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 	return 0;
 }
 
-/// <summary>
-/// Loads a sample player MOISE synth with the provided sample data.
-/// </summary>
-/// <param name="data">Pointer to MOISE_SamplePlayer_Sample data, which determines the sample's waveform and meta data, such as loop points.</param>
-/// <param name="waveformSampleCount">The sample count of the waveform. Note: I'm not sure why this isn't just included in MOISE_SamplePlayer_Sample.</param>
-/// <returns></returns>
-float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleCount) {
-	testSynth = new MoiseSynth_SamplePlayer(data, waveformSampleCount);
-	testSynth->Initialize(sampleRate, 2);
-	return testSynth->GetWaveformValue(16); //Return a sample value for testing purposes.
+bool Play() {
+	if (!compositionReady) {
+		std::cerr << "No composition is loaded and so playback cannot begin." << std::endl;
+		return false;
+	}
+	playing = true;
+	return true;
 }
 
 /// <summary>
@@ -201,12 +194,17 @@ float LoadSamplePlayerSynth(MOISE_SamplePlayer_Sample* data, int waveformSampleC
 /// <param name="command">The command.</param>
 /// <param name="track">The track that the command is sent to.</param>
 void ProcessCommand(Command command, int track) {
+	if (synths.size() <= track) {
+		std::cerr << "ProcessCommand: No synth found for track " << track << std::endl;
+		return;
+	}
+
 	switch (command.function) {
 	case 0: // Note Off
 		// Implement Note Off logic here
 		break;
 	case 1: // Note On
-		testSynth->NoteOn(command.intParameters[0]);
+		synths[track]->NoteOn(command.intParameters[0]);
 		break;
 	default:
 		std::cerr << "Unknown command function: " << command.function << std::endl;
@@ -222,52 +220,42 @@ void ProcessCommand(Command command, int track) {
 /// <param name="channels">The number of audio channels being used (1 = mono, 2 = stereo)</param>
 /// <returns></returns>
 int FillWaveformData(float data[], int sampleTotal, int channels) {
+	if (playing) {
+		for (int i = 0; i < sampleTotal; i += channels) {
 
-	for (int i = 0; i < sampleTotal; i += channels) {
+			//Hard coded queue filling for testing purposes.
+			if (commandQueue.empty()) { //Only execute this loop if playing.
+				for (int i = 0; i < currentComposition.tracks[0].commands.size(); i++) {
+					commandQueue.push(currentComposition.tracks[0].commands[i]);
+				}
 
-		//Hard coded queue filling for testing purposes.
-		if (commandQueue.empty()) {
-			for (int i = 0; i < currentComposition.tracks[0].commands.size(); i++) {
-				commandQueue.push(currentComposition.tracks[0].commands[i]);
+				preciseTick = 0.0;
 			}
 
-			preciseTick = 0.0;
+			//Advance the current tick and check for any new commands to process
+			preciseTick += timeAdvance * 64; // Assuming 60 ticks per second for simplicity NOTE: the "* 64" is to speed up the playback for testing purposes.
+			currentTick = std::floor(preciseTick);
+
+			//Processes any queued commands that are due to be executed based on the current tick.
+			while (!commandQueue.empty() && commandQueue.front().tick <= currentTick) {
+				Command currentCommand = commandQueue.front();
+				commandQueue.pop();
+				ProcessCommand(currentCommand, 0);
+			}
+
+			//Get waveform data from active synths for this sample. Currently, only one synth is supported for testing purposes. This is to be a loop through all active synths in the future.
+			if (synths.size() > 0) {
+				float *newSample = synths[0]->GetNextSample(timeAdvance);
+				for (int j = 0; j < channels; j++) {
+					data[i + j] = newSample[j];
+				}
+			}
+
+			//Advance the current real time that has passed for this sample.
+			currentTime += timeAdvance;
 		}
-
-		//Advance the current tick and check for any new commands to process
-		preciseTick += timeAdvance * 64; // Assuming 60 ticks per second for simplicity NOTE: the "* 64" is to speed up the playback for testing purposes.
-		currentTick = std::floor(preciseTick);
-
-		//Processes any queued commands that are due to be executed based on the current tick.
-		while (!commandQueue.empty() && commandQueue.front().tick <= currentTick) {
-			Command currentCommand = commandQueue.front();
-			commandQueue.pop();
-			ProcessCommand(currentCommand, 0);
-		}
-
-		//Get waveform data from active synths for this sample. Currently, only one synth is supported for testing purposes. This is to be a loop through all active synths in the future.
-		float* newSample = testSynth->GetNextSample(timeAdvance);
-		for (int j = 0; j < channels; j++) {
-			data[i+j] = newSample[j];
-		}
-
-		//Advance the current real time that has passed for this sample.
-		currentTime += timeAdvance;
 	}
 
 	//Returns the current tick in order to easily view the progression of time in the MOISE editor.
 	return currentTick;
-}
-
-/// <summary>
-/// Get the test synth's first sample's waveform value at a specific sample index.
-/// </summary>
-/// <param name="sampleIndex">The sample index</param>
-/// <returns>The waveform value</returns>
-float GetTestSynthWaveformValue(int sampleIndex) {
-	if (!testSynth) {
-		return -1.f;
-	}
-
-	return testSynth->GetWaveformValue(sampleIndex);
 }
