@@ -39,9 +39,8 @@ MOISE is inspired by video games from back in the 80s and 90s that took advantag
 
 [Clint Bajakian and Michael Land from LucasArts games interview](https://youtu.be/-0EqG6RYn9Y?si=ePghIS39WEbE0Xds)
  
-Pinball
-[ Visual Pinball X - Black Knight 2000 (Williams 1989) v2 - UnclePaulie mod - Jackpot and extra ball.
-](https://www.youtube.com/watch?v=4Rn8t14axLU)
+Pinball  
+Black Knight 2000 Gameplay (Direct Audio Input) https://youtu.be/ZKU9qGvtUAM?si=IUbOCoi0y-xD9ovh
 
 [https://www.gamedeveloper.com/audio/interactive-audio-in-black-knight-2000-the-importance-of-integration 
 ](https://www.gamedeveloper.com/audio/interactive-audio-in-black-knight-2000-the-importance-of-integration)
