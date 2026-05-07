@@ -188,6 +188,12 @@ bool Play() {
 	return true;
 }
 
+void Stop() {
+	playing = false;
+	preciseTick = 0;
+	while (!commandQueue.empty()) commandQueue.pop();
+}
+
 /// <summary>
 /// Processes MOISE commands.
 /// </summary>

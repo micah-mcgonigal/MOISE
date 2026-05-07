@@ -16,4 +16,6 @@ extern "C" EXPORT int LoadPackageFromFile(char* packagePath, char* sampleBankPat
 
 extern "C" EXPORT bool Play();
 
+extern "C" EXPORT void Stop();
+
 extern "C" EXPORT int FillWaveformData(float data[], int sampleTotal, int channels);
