@@ -19,6 +19,9 @@ std::queue<Command> commandQueue;
 //The currently loaded composition.
 Composition currentComposition;
 
+//Variables are used for processing command conditions.
+std::unordered_map<std::string, Variable> variables;
+
 double currentTime, preciseTick; //Currrent time in seconds and ticks. Ticks are to be determined by a ticks-per-measure value.
 double timeAdvance; //Holds the amount of time to advance for each sample.
 int sampleRate, currentTick, lastTick;
@@ -176,6 +179,19 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 
 	}
 
+	// --------
+	//Load variable data from the package JSON
+	if (!jsonData.contains("variables")) {
+		std::cerr << "LoadPackageFromFile: No variables contained in JSON data at " << packagePath << std::endl;
+	}
+	else {
+		std::vector<json> variablesJson = jsonData.at("variables").get<std::vector<json>>();
+
+		for (const auto &variableJson : variablesJson) {
+			variables.insert({ variableJson.at("name").get<std::string>(), variableJson.get<Variable>() });
+		}
+	}
+
 	return 0;
 }
 
@@ -194,15 +210,126 @@ void Stop() {
 	while (!commandQueue.empty()) commandQueue.pop();
 }
 
+//I know there's probably a better way to handle this but this is the best I can come up with right now.
+bool CompareBools(Variable variable, Condition condition) {
+	switch (condition.comparisonType) {
+	case 0:
+		return variable.boolValue == condition.boolValue;
+		break;
+	case 1:
+		return variable.boolValue != condition.boolValue;
+		break;
+	default:
+		return false;
+		std::cerr << "CompareBools: comparisonType is invalid. comparisonType is " << variable.type << std::endl;
+		break;
+	}
+
+	return false;
+}
+
+bool CompareInts(Variable variable, Condition condition) {
+	switch (condition.comparisonType) {
+	case 0:
+		return variable.intValue == condition.intValue;
+		break;
+	case 1:
+		return variable.intValue != condition.intValue;
+		break;
+	case 2:
+		return variable.intValue < condition.intValue;
+		break;
+	case 3:
+		return variable.intValue > condition.intValue;
+		break;
+	case 4:
+		return variable.intValue <= condition.intValue;
+		break;
+	case 5:
+		return variable.intValue >= condition.intValue;
+		break;
+	default:
+		std::cerr << "CompareInts: comparisonType is invalid. comparisonType is " << variable.type << std::endl;
+		return false;
+	}
+
+	return false;
+}
+
+bool CompareFloats(Variable variable, Condition condition) {
+	switch (condition.comparisonType) {
+	case 0:
+		return variable.floatValue == condition.floatValue;
+		break;
+	case 1:
+		return variable.floatValue != condition.floatValue;
+		break;
+	case 2:
+		return variable.floatValue < condition.floatValue;
+		break;
+	case 3:
+		return variable.floatValue > condition.floatValue;
+		break;
+	case 4:
+		return variable.floatValue <= condition.floatValue;
+		break;
+	case 5:
+		return variable.floatValue >= condition.floatValue;
+		break;
+	default:
+		std::cerr << "CompareFloats: comparisonType is invalid. comparisonType is " << variable.type << std::endl;
+		return false;
+	}
+
+	return false;
+}
+
+bool ProcessCondition(Condition condition) {
+	auto it = variables.find(condition.variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "Variable not found: " << condition.variableName << std::endl;
+		return false;
+	}
+
+	Variable variable = it->second;
+
+	switch (variable.type) {
+	case 0: //Bool
+		return CompareBools(variable, condition);
+		break;
+	case 1: //Int
+		return CompareInts(variable, condition);
+		break;
+	case 2: //Float
+		return CompareFloats(variable, condition);
+		break;
+	default:
+		std::cerr << "ProcessCondition: Variable type is invalid. VariableType is " << variable.type << std::endl;
+		return false;
+		break;
+	}
+
+	return false;
+}
+
 /// <summary>
 /// Processes MOISE commands.
 /// </summary>
 /// <param name="command">The command.</param>
 /// <param name="track">The track that the command is sent to.</param>
-void ProcessCommand(Command command, int track) {
+bool ProcessCommand(Command command, int track) {
+	//First see if the command's conditions are met.
+	for (Condition condition : command.conditions)
+	{
+		if (!ProcessCondition(condition)) {
+			return false;
+		}
+	}
+
 	if (synths.size() <= track) {
 		std::cerr << "ProcessCommand: No synth found for track " << track << std::endl;
-		return;
+		return false;
 	}
 
 	switch (command.function) {
@@ -216,6 +343,113 @@ void ProcessCommand(Command command, int track) {
 		std::cerr << "Unknown command function: " << command.function << std::endl;
 		break;
 	}
+
+	return true;
+}
+ //This should be updated to send the bool via an out so that it can return based on whether or not it was successful
+bool GetBool(const char *variableName) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "GetBool: Variable not found: " << variableName << std::endl;
+		return false;
+	}
+
+	if (it->second.type != 0) {
+		// variable not correct type
+		std::cerr << "GetBool: Variable is not a bool. Actual type = " << it->second.type << std::endl;
+		return false;
+	}
+
+	return it->second.boolValue;
+}
+
+bool SetBool(const char *variableName, bool newValue) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "SetBool: Variable not found: " << variableName << std::endl;
+		return false;
+	}
+
+	if (it->second.type != 0) {
+		// variable not correct type
+		std::cerr << "SetBool: Variable is not a bool. Actual type = " << it->second.type << std::endl;
+		return false;
+	}
+
+	it->second.boolValue = newValue;
+	return true;
+}
+
+int GetInt(const char *variableName) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "GetInt: Variable not found: " << variableName << std::endl;
+		return 0;
+	}
+
+	if (it->second.type != 1) {
+		// variable not correct type
+		std::cerr << "GetInt: Variable is not an int. Actual type = " << it->second.type << std::endl;
+		return 0;
+	}
+
+	return it->second.intValue;
+}
+
+bool SetInt(const char *variableName, int newValue) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "SetInt: Variable not found: " << variableName << std::endl;
+		return false;
+	}
+
+	if (it->second.type != 1) {
+		// variable not correct type
+		std::cerr << "SetInt: Variable is not an int. Actual type = " << it->second.type << std::endl;
+		return false;
+	}
+
+	it->second.intValue = newValue;
+	return true;
+}
+
+float GetFloat(const char *variableName) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "GetFloat: Variable not found: " << variableName << std::endl;
+		return 0;
+	}
+
+	if (it->second.type != 2) {
+		// variable not correct type
+		std::cerr << "GetFloat: Variable is not a float. Actual type = " << it->second.type << std::endl;
+		return 0;
+	}
+
+	return it->second.floatValue;
+}
+
+bool SetFloat(const char *variableName, float newValue) {
+	auto it = variables.find(variableName);
+	if (it == variables.end()) {
+		// variable not found
+		std::cerr << "SetFloat: Variable not found: " << variableName << std::endl;
+		return false;
+	}
+
+	if (it->second.type != 2) {
+		// variable not correct type
+		std::cerr << "SetFloat: Variable is not a float. Actual type = " << it->second.type << std::endl;
+		return false;
+	}
+
+	it->second.floatValue = newValue;
+	return true;
 }
 
 /// <summary>

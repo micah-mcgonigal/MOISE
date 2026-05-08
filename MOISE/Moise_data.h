@@ -4,15 +4,40 @@
 
 using json = nlohmann::json;
 
+//Variables are referenced by conditions when determining whether or not a command should be executed.
+struct Variable {
+	std::string name;
+	int type; //0 = bool, 1 = int, 2 = float
+	float floatValue;
+	int intValue;
+	bool boolValue;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Variable,
+	name,
+	type,
+	floatValue,
+	intValue,
+	boolValue)
+
 //Conditions are used by commands to determine if they should be executed or not based on the value of global variables.
 struct Condition {
 	std::string variableName;
+	int comparisonType; //0 = Equal, 1 = Unequal, 2 = LessThan, 3 = GreaterThan, 4 = LessThanEqual, 5 = GreaterThanEqual
+	float floatValue;
+	int intValue;
+	bool boolValue;
 };
 
 //This allows us to deserialize JSON directly into our Condition struct
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	Condition,
-	variableName)
+	variableName,
+	comparisonType,
+	floatValue,
+	intValue,
+	boolValue)
 
 //A MOISE command stores the tick it occurs on, its conditions, the value of the function it is to call and the values of its parameters.
 struct Command {
