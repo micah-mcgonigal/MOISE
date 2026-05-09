@@ -87,8 +87,12 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	Song,
 	compositions)
 
+	enum EnvelopeState {Attacking, AttackDecaying, SustainDecaying, Releasing};
+
 //An envelope defines ADSR parameters for a synth.
 struct Envelope {
+	EnvelopeState state;
+	float currentValue;
 	float attack;
 	float attackDecay;
 	float sustain;

@@ -59,7 +59,6 @@ class MoiseSynth_SamplePlayer : public MoiseSynth {
 
 private:
 	std::vector<MOISE_SamplePlayer_Sample> sampleBank = {}; //Sample bank for this sample player.
-	Envelope defaultEnvelope = {}; //Default envelope for this sample player.
 
 public:
 	int activeSampleId = 0; //The ID of the sample to use for when sample banks are in use. Currently this corresponds to an index into the sample bank.
@@ -81,14 +80,6 @@ public:
 		//for (int i = 0; i < waveformSampleCount; i++) {
 		//	sampleData.waveform[i] = -1 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1 - -1)));
 		//}
-	}
-
-	/// <summary>
-	/// Set the default envelope for this sample player.
-	/// </summary>
-	/// <param name="inEnvelope">The default envelope</param>
-	void SetDefaultEnvelope(const Envelope& inEnvelope) {
-		defaultEnvelope = inEnvelope;
 	}
 
 	/// <summary>
@@ -163,26 +154,39 @@ public:
 			return nullptr;
 		}
 
-		//Get active sample data
-		const MOISE_SamplePlayer_Sample& sampleData = sampleBank[activeSampleId];
+		UpdateEnvelope(timeAdvance);
 
-		//Get the current sample position by flooring the current precise position (with modulo to ensure position is within sample waveform bounds).
-		currentSamplePosition = static_cast<int>(std::floor(currentPosition)) % sampleData.waveform.size();
+		if (active) {
 
-		//Get a sample from the waveform data at the currentSamplePosition.
-		float centerSample = sampleData.waveform[currentSamplePosition];
+			//Get active sample data
+			const MOISE_SamplePlayer_Sample &sampleData = sampleBank[activeSampleId];
 
-		//Apply the sample to all channels. This is where panning will occur once implemented.
-		for (int i = 0; i < channels; i++) {
-			currentSample[i] = centerSample;
+			//Get the current sample position by flooring the current precise position (with modulo to ensure position is within sample waveform bounds).
+			currentSamplePosition = static_cast<int>(std::floor(currentPosition)) % sampleData.waveform.size();
+
+			//Get a sample from the waveform data at the currentSamplePosition.
+			float centerSample = sampleData.waveform[currentSamplePosition];
+
+			//Multiply the sample by the current envelope value
+			centerSample *= currentEnvelope.currentValue;
+
+			//Apply the sample to all channels. This is where panning will occur once implemented.
+			for (int i = 0; i < channels; i++) {
+				currentSample[i] = centerSample;
+			}
+
+			//Advance the current position based on the frequency being played, the rate, and the sample's root frequency.
+			currentPosition += sampleData.positionRate * (frequency / sampleData.rootFrequency);
+			while (currentPosition >= sampleData.loopEnd &&
+				sampleData.loopStart < sampleData.loopEnd) { //Prevent infinite loop in the case that loopStart >= loopEnd
+				//Smoothly loop the sample back to the loop start point.
+				currentPosition -= (sampleData.loopEnd - sampleData.loopStart);
+			}
 		}
-
-		//Advance the current position based on the frequency being played, the rate, and the sample's root frequency.
-		currentPosition += sampleData.positionRate * (frequency / sampleData.rootFrequency);
-		while (currentPosition >= sampleData.loopEnd &&
-			   sampleData.loopStart < sampleData.loopEnd) { //Prevent infinite loop in the case that loopStart >= loopEnd
-			//Smoothly loop the sample back to the loop start point.
-			currentPosition -= (sampleData.loopEnd - sampleData.loopStart);
+		else {
+			for (int i = 0; i < channels; i++) {
+				currentSample[i] = 0;
+			}
 		}
 
 		//Returns the current sample.
@@ -195,6 +199,11 @@ public:
 	/// <param name="value"></param>
 	virtual void NoteOn(int value) override {
 		MoiseSynth::NoteOn(value);
+
+		active = true;
+		playing = true;
+		currentEnvelope.state = EnvelopeState::Attacking;
+		currentEnvelope.currentValue = 0;
 
 		//In the future, I will select the sample to use based on the value, as there can be multiple samples in a bank.
 		//Refer to old MOISE Unity project.

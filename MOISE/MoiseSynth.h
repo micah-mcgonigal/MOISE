@@ -10,6 +10,8 @@ class MoiseSynth {
 	static float stepHz;
 
 protected:
+	Envelope defaultEnvelope = {}; //Default envelope for this synth.
+	Envelope currentEnvelope = {}; //Current envelope for this synth.
 	double currentTime; //The current time in seconds of the synth's active voice.
 	float currentSample[2]; //Stores up to 2 channels of audio data for each sample taken from the synth.
 	float frequency = 440; //The current frequency of playback, determined by the value of the NoteOn command.
@@ -21,7 +23,8 @@ protected:
 	int currentValue; //The current enum value of the note being played.
 	int sampleRate; //The base sample rate of the sample.
 	int channels; //The number of audio channels being used (1 = mono, 2 = stereo)
-	bool active; //Whether or not the synth is currently active.
+	bool playing; //Whether or not the synth is currently playing (Does not include if this synth is off but still producing audio, such as when the envelope is finishing after a NoteOff command).
+	bool active; //True if this synth is producing any audi at all.
 	bool initialized; //Whether or not the synth has been initialized.
 
 public:
@@ -39,6 +42,62 @@ public:
 		channels = setChannels;
 		stepHz = std::pow(2.0, 1.0 / 12.0); 
 		initialized = true;
+	}
+
+	void Stop() {
+		playing = false;
+		active = false;
+		currentPosition = 0;
+		currentTime = 0;
+	}
+
+	/// <summary>
+	/// Set the default envelope for this synth.
+	/// </summary>
+	/// <param name="inEnvelope">The default envelope</param>
+	void SetDefaultEnvelope(const Envelope &inEnvelope) {
+		defaultEnvelope = inEnvelope;
+		currentEnvelope = defaultEnvelope;
+	}
+
+	//Updates the envelope based on the number of ticks this update.
+	void UpdateEnvelope(float time) {
+		switch (currentEnvelope.state) {
+		case EnvelopeState::Attacking:
+			currentEnvelope.currentValue += (time / currentEnvelope.attack);
+
+			if (currentEnvelope.currentValue >= 1) {
+				currentEnvelope.state = EnvelopeState::AttackDecaying;
+				UpdateEnvelope((currentEnvelope.currentValue - 1) * currentEnvelope.attack);
+			}
+			break;
+		case EnvelopeState::AttackDecaying:
+			currentEnvelope.currentValue -= (time / currentEnvelope.attackDecay);
+
+			if (currentEnvelope.currentValue <= currentEnvelope.sustain) {
+				currentEnvelope.state = EnvelopeState::SustainDecaying;
+				float remainingTime = (currentEnvelope.sustain - currentEnvelope.currentValue) * currentEnvelope.attackDecay;
+				currentEnvelope.currentValue = currentEnvelope.sustain;
+				UpdateEnvelope(remainingTime);
+			}
+			break;
+		case EnvelopeState::SustainDecaying:
+			if (currentEnvelope.sustainDecay > 0) {
+				currentEnvelope.currentValue -= (time / currentEnvelope.sustainDecay);
+
+				if (currentEnvelope.currentValue <= 0) {
+					Stop();
+				}
+			}
+			break;
+		case EnvelopeState::Releasing:
+			currentEnvelope.currentValue -= (time / currentEnvelope.release);
+
+			if (currentEnvelope.currentValue <= 0) {
+				Stop();
+			}
+			break;
+		}
 	}
 
 	/// <summary>
@@ -71,7 +130,7 @@ public:
 	/// </summary>
 	/// <param name="value"></param>
 	virtual void NoteOn(int value) {
-		active = true;
+		playing = true;
 		frequency = 440 * std::pow(stepHz, value);
 		currentValue = value;
 		currentPosition = 0;
