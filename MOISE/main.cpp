@@ -13,9 +13,6 @@ float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
 //Loaded synth instances
 std::vector<std::unique_ptr<MoiseSynth>> synths = {};
 
-//A queue used to manage commands as loaded in each playing track.
-std::queue<Command> commandQueue;
-
 //The currently loaded composition.
 Composition currentComposition;
 
@@ -24,7 +21,8 @@ std::unordered_map<std::string, Variable> variables;
 
 double currentTime, preciseTick; //Currrent time in seconds and ticks. Ticks are to be determined by a ticks-per-measure value.
 double timeAdvance; //Holds the amount of time to advance for each sample.
-int sampleRate, currentTick, lastTick;
+std::vector<int> currentCommandIndexPerTrack;
+int sampleRate, currentTick = -1, lastTick; //Current tick should be negative one when a song is stopped or changed.
 bool playing = false, compositionReady = false;
 
 int main() {
@@ -36,6 +34,7 @@ void Init(int setSampleRate) {
 	sampleRate = setSampleRate;
 	timeAdvance = 1.0 / sampleRate;
 	currentTime = 0;
+	currentCommandIndexPerTrack.resize(64); //Just default to 64 tracks for flexibility
 
 	//testSynth->Initialize(sampleRate, 2);
 
@@ -207,7 +206,7 @@ bool Play() {
 void Stop() {
 	playing = false;
 	preciseTick = 0;
-	while (!commandQueue.empty()) commandQueue.pop();
+	currentTick = -1;
 }
 
 //I know there's probably a better way to handle this but this is the best I can come up with right now.
@@ -463,24 +462,30 @@ int FillWaveformData(float data[], int sampleTotal, int channels) {
 	if (playing) {
 		for (int i = 0; i < sampleTotal; i += channels) {
 
-			//Hard coded queue filling for testing purposes.
-			if (commandQueue.empty()) { //Only execute this loop if playing.
-				for (int i = 0; i < currentComposition.tracks[0].commands.size(); i++) {
-					commandQueue.push(currentComposition.tracks[0].commands[i]);
-				}
-
-				preciseTick = 0.0;
-			}
-
 			//Advance the current tick and check for any new commands to process
 			preciseTick += timeAdvance * 64; // Assuming 60 ticks per second for simplicity NOTE: the "* 64" is to speed up the playback for testing purposes.
-			currentTick = std::floor(preciseTick);
 
-			//Processes any queued commands that are due to be executed based on the current tick.
-			while (!commandQueue.empty() && commandQueue.front().tick <= currentTick) {
-				Command currentCommand = commandQueue.front();
-				commandQueue.pop();
-				ProcessCommand(currentCommand, 0);
+			//Advance one tick at a time to make sure all commands are processed
+			while (currentTick < std::floor(preciseTick)) {
+				currentTick += 1;
+
+				//If we have gone beyond the current composition's total ticks, reset ticks to the beginning
+				if (currentTick >= currentComposition.totalTicks) {
+					preciseTick -= currentComposition.totalTicks;
+					currentTick = 0;
+
+					for (int t = 0; t < currentCommandIndexPerTrack.size(); t++) {
+						currentCommandIndexPerTrack[t] = 0;
+					}
+				}
+
+				//Process all the commands for this tick across all tracks as well as any that may have been missed somehow (That shouldn't be possible, but better safe than sorry)
+				for (int t = 0; t < currentComposition.tracks.size(); t++) {
+					for (int c = currentCommandIndexPerTrack[t]; c < currentComposition.tracks[t].commands.size() && currentComposition.tracks[t].commands[c].tick <= currentTick; c++) {
+						ProcessCommand(currentComposition.tracks[t].commands[c], t);
+						currentCommandIndexPerTrack[t] = c + 1;
+					}
+				}
 			}
 
 			//Get waveform data from active synths for this sample. Currently, only one synth is supported for testing purposes. This is to be a loop through all active synths in the future.

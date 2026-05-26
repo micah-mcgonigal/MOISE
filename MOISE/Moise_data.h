@@ -69,13 +69,17 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 
 //A composition stores a vector of tracks and the number of tracks it contains.
 struct Composition {
-    std::vector<Track> tracks;;
+	std::string id;
+    std::vector<Track> tracks;
+	int totalTicks;
 };
 
 //This allows us to deserialize JSON directly into our Composition struct
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	Composition,
-	tracks)
+	id,
+	tracks,
+	totalTicks)
 
 //A song stores a vector of compositions
 struct Song {
