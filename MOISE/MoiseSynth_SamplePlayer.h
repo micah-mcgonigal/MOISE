@@ -22,7 +22,6 @@ struct MOISE_SamplePlayer_Sample {
 	std::vector<float> waveform; //Buffer of floats representing the waveform of the sample.
 	float rootFrequency; //The frequency at which the sample was recorded.
 	float waveformRate; //The base sample rate of the waveform.
-	float positionRate; //The adjusted sample rate of the waveform based on the current sample rate of the MOISE engine and the waveformRate.
 	int loopStart; //The sample index at which the sample's loop starts.
 	int loopEnd; //The sample index at which the sample's loop ends.
 	float minFrequency; //The minimum frequency that a sample should be used.
@@ -39,7 +38,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	MOISE_SamplePlayer_Sample,
 	rootFrequency,
 	waveformRate,
-	positionRate,
 	loopStart,
 	loopEnd,
 	minFrequency,
@@ -180,7 +178,7 @@ public:
 			}
 
 			//Advance the current position based on the frequency being played, the rate, and the sample's root frequency.
-			currentPosition += sampleData.positionRate * (frequency / sampleData.rootFrequency);
+			currentPosition += (sampleData.waveformRate / sampleRate) * (frequency / sampleData.rootFrequency);
 			while (currentPosition >= sampleData.loopEnd &&
 				sampleData.loopStart < sampleData.loopEnd) { //Prevent infinite loop in the case that loopStart >= loopEnd
 				//Smoothly loop the sample back to the loop start point.
