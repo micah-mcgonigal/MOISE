@@ -25,6 +25,8 @@ struct MOISE_SamplePlayer_Sample {
 	float positionRate; //The adjusted sample rate of the waveform based on the current sample rate of the MOISE engine and the waveformRate.
 	int loopStart; //The sample index at which the sample's loop starts.
 	int loopEnd; //The sample index at which the sample's loop ends.
+	float minFrequency; //The minimum frequency that a sample should be used.
+	float maxFrequency; //The maximum frequency that a sample should be used.
 	//MOISE_Note minNote; //The minimum MOISE_Note value that can trigger this sample.
 	//MOISE_Note maxNote; //The maximum MOISE_Note value that can trigger this sample.
 	int waveformLength; //The length of the waveform (in samples).
@@ -40,6 +42,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	positionRate,
 	loopStart,
 	loopEnd,
+	minFrequency,
+	maxFrequency,
 	waveformLength,
 	waveformChunkStart,
 	name)
@@ -199,6 +203,15 @@ public:
 	/// <param name="value"></param>
 	virtual void NoteOn(int value) override {
 		MoiseSynth::NoteOn(value);
+
+		//Update the sample being used based on the current frequency
+		for (int i = 0; i < sampleBank.size(); i++) {
+			activeSampleId = i;
+
+			if (sampleBank[i].minFrequency < frequency && sampleBank[i].maxFrequency >= frequency) {
+				break;
+			}
+		}
 
 		active = true;
 		playing = true;
