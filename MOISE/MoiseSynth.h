@@ -64,7 +64,15 @@ public:
 	void UpdateEnvelope(float time) {
 		switch (currentEnvelope.state) {
 		case EnvelopeState::Attacking:
-			currentEnvelope.currentValue += (time / currentEnvelope.attack);
+			if (currentEnvelope.attack > 0) {
+				currentEnvelope.currentValue += (time / currentEnvelope.attack);
+			}
+			else {
+				currentEnvelope.currentValue = 1;
+				currentEnvelope.state = EnvelopeState::AttackDecaying;
+				UpdateEnvelope(time);
+				break;
+			}
 
 			if (currentEnvelope.currentValue >= 1) {
 				currentEnvelope.state = EnvelopeState::AttackDecaying;
@@ -72,7 +80,15 @@ public:
 			}
 			break;
 		case EnvelopeState::AttackDecaying:
-			currentEnvelope.currentValue -= (time / currentEnvelope.attackDecay);
+			if (currentEnvelope.attackDecay > 0) {
+				currentEnvelope.currentValue -= (time / currentEnvelope.attackDecay);
+			}
+			else {
+				currentEnvelope.currentValue = currentEnvelope.sustain;
+				currentEnvelope.state = EnvelopeState::SustainDecaying;
+				UpdateEnvelope(time);
+				break;
+			}
 
 			if (currentEnvelope.currentValue <= currentEnvelope.sustain) {
 				currentEnvelope.state = EnvelopeState::SustainDecaying;
@@ -91,7 +107,13 @@ public:
 			}
 			break;
 		case EnvelopeState::Releasing:
-			currentEnvelope.currentValue -= (time / currentEnvelope.release);
+			if (currentEnvelope.release > 0) {
+				currentEnvelope.currentValue -= (time / currentEnvelope.release);
+			}
+			else {
+				Stop();
+				break;
+			}
 
 			if (currentEnvelope.currentValue <= 0) {
 				Stop();
