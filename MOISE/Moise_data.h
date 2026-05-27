@@ -39,13 +39,38 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	intValue,
 	boolValue)
 
+struct Parameter {
+	int type; //0 = int, 1 = float, 2 = variable
+	int intParameter;
+	float floatParameter;
+	std::string variableParameter;
+	int parameterOperator; //0 = Addition, 1 = Subtraction, 2 =  Multiplication, 3 = Division, 4 = Power
+};
+
+//This allows us to deserialize JSON directly into our parameter struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	Parameter,
+	type,
+	intParameter,
+	floatParameter,
+	variableParameter,
+	parameterOperator)
+
+struct ParameterSet {
+	std::vector<Parameter> parameters;
+};
+
+//This allows us to deserialize JSON directly into our parameter set struct
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
+	ParameterSet,
+	parameters)
+
 //A MOISE command stores the tick it occurs on, its conditions, the value of the function it is to call and the values of its parameters.
 struct Command {
 	int tick;
 	std::vector<Condition> conditions;
 	int function;
-	std::vector<float> floatParameters;
-	std::vector<int> intParameters;
+	std::vector<ParameterSet> parameterSets;
 };
 
 //This allows us to deserialize JSON directly into our Command struct
@@ -54,8 +79,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	tick,
 	conditions,
 	function,
-	floatParameters,
-	intParameters)
+	parameterSets)
 
 //A track stores a vector of commands and the number of commands it contains.
 struct Track {

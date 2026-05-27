@@ -312,6 +312,59 @@ bool ProcessCondition(Condition condition) {
 	return false;
 }
 
+int GetIntFromParameterSet(ParameterSet &set) {
+	int result = 0;
+	int operand = 0;
+
+	for (int i = 0; i < set.parameters.size(); i++) {
+		switch (set.parameters[i].type) {
+		case 0:
+			operand = set.parameters[i].intParameter;
+			break;
+		case 1:
+			continue;
+			break;
+
+		case 2:
+			auto it = variables.find(set.parameters[i].variableParameter);
+			if (it == variables.end()) {
+				// variable not found
+				std::cerr << "Parmaeter variable not found: " << set.parameters[i].variableParameter << std::endl;
+				return false;
+			}
+
+			Variable variable = it->second;
+			if (variable.type == 1) {
+				operand = variable.intValue;
+			}
+			else {
+				continue;
+			}
+			break;
+		}
+
+		switch (set.parameters[i].parameterOperator) {
+		case 0:
+			result += operand;
+			break;
+		case 1:
+			result -= operand;
+			break;
+		case 2:
+			result *= operand;
+			break;
+		case 3:
+			result = std::lround(result / operand);
+			break;
+		case 4:
+			result = std::lround(pow(result, operand));
+			break;
+		}
+	}
+
+	return result;
+}
+
 /// <summary>
 /// Processes MOISE commands.
 /// </summary>
@@ -336,7 +389,9 @@ bool ProcessCommand(Command command, int track) {
 		// Implement Note Off logic here
 		break;
 	case 1: // Note On
-		synths[track]->NoteOn(command.intParameters[0]);
+		if (command.parameterSets.size() > 0) {
+			synths[track]->NoteOn(GetIntFromParameterSet(command.parameterSets[0]));
+		}
 		break;
 	default:
 		std::cerr << "Unknown command function: " << command.function << std::endl;
