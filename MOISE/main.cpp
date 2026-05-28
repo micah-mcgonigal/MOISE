@@ -312,6 +312,54 @@ bool ProcessCondition(Condition condition) {
 	return false;
 }
 
+float GetFloatFromParameterSet(ParameterSet &set) {
+	float result = 0;
+	float operand = 0;
+
+	for (int i = 0; i < set.parameters.size(); i++) {
+		switch (set.parameters[i].type) {
+		case 0:
+			operand = set.parameters[i].intParameter;
+			break;
+		case 1:
+			continue;
+			operand = set.parameters[i].floatParameter;
+			break;
+		case 2:
+			auto it = variables.find(set.parameters[i].variableParameter);
+			if (it == variables.end()) {
+				// variable not found
+				std::cerr << "Parmaeter variable not found: " << set.parameters[i].variableParameter << std::endl;
+				continue;
+			}
+
+			Variable variable = it->second;
+			operand = variable.floatValue;
+			break;
+		}
+
+		switch (set.parameters[i].parameterOperator) {
+		case 0:
+			result += operand;
+			break;
+		case 1:
+			result -= operand;
+			break;
+		case 2:
+			result *= operand;
+			break;
+		case 3:
+			result = result / operand;
+			break;
+		case 4:
+			result = pow(result, operand);
+			break;
+		}
+	}
+
+	return result;
+}
+
 int GetIntFromParameterSet(ParameterSet &set) {
 	int result = 0;
 	int operand = 0;
@@ -330,7 +378,7 @@ int GetIntFromParameterSet(ParameterSet &set) {
 			if (it == variables.end()) {
 				// variable not found
 				std::cerr << "Parmaeter variable not found: " << set.parameters[i].variableParameter << std::endl;
-				return false;
+				continue;
 			}
 
 			Variable variable = it->second;
