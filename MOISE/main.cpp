@@ -19,6 +19,9 @@ Composition currentComposition;
 //Variables are used for processing command conditions.
 std::unordered_map<std::string, Variable> variables;
 
+//Queue of strings for callbacks
+std::queue<std::string> callbackQueue;
+
 double currentTime, preciseTick; //Currrent time in seconds and ticks. Ticks are to be determined by a ticks-per-measure value.
 double timeAdvance; //Holds the amount of time to advance for each sample.
 std::vector<int> currentCommandIndexPerTrack;
@@ -207,6 +210,20 @@ void Stop() {
 	playing = false;
 	preciseTick = 0;
 	currentTick = -1;
+}
+
+int GetNextCallbackInQueue(char *callback, int capacity) {
+	if (callbackQueue.size() > 0) {
+		if (callbackQueue.front().length() > capacity) {
+			std::cerr << "Callback string was larger than the available capacity." << std::endl;
+			return 0;
+		}
+		strcpy_s(callback, capacity, callbackQueue.front().c_str());
+		callbackQueue.pop();
+		return callbackQueue.size() + 1;
+	}
+
+	return 0;
 }
 
 //I know there's probably a better way to handle this but this is the best I can come up with right now.
@@ -439,6 +456,11 @@ bool ProcessCommand(Command command, int track) {
 	case 1: // Note On
 		if (command.parameterSets.size() > 0) {
 			synths[track]->NoteOn(GetIntFromParameterSet(command.parameterSets[0]));
+		}
+		break;
+	case 3: // Callback
+		if (command.parameterSets.size() > 0 && command.parameterSets[0].parameters.size() > 0) {
+			callbackQueue.push(command.parameterSets[0].parameters[0].variableParameter);
 		}
 		break;
 	default:

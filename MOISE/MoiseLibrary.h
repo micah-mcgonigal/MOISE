@@ -32,3 +32,5 @@ extern "C" EXPORT float GetFloat(const char *variableName);
 
 extern "C" EXPORT bool SetFloat(const char *variableName, float newValue);
 
+extern "C" EXPORT int GetNextCallbackInQueue(char *callback, int capacity);
+
