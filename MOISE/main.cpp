@@ -434,7 +434,7 @@ bool ProcessCommand(Command command, int track) {
 
 	switch (command.function) {
 	case 0: // Note Off
-		// Implement Note Off logic here
+		synths[track]->NoteOff();
 		break;
 	case 1: // Note On
 		if (command.parameterSets.size() > 0) {

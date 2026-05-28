@@ -24,7 +24,7 @@ protected:
 	int sampleRate; //The base sample rate of the sample.
 	int channels; //The number of audio channels being used (1 = mono, 2 = stereo)
 	bool playing; //Whether or not the synth is currently playing (Does not include if this synth is off but still producing audio, such as when the envelope is finishing after a NoteOff command).
-	bool active; //True if this synth is producing any audi at all.
+	bool active; //True if this synth is producing any audio at all.
 	bool initialized; //Whether or not the synth has been initialized.
 
 public:
@@ -145,6 +145,11 @@ public:
 		currentTime += timeAdvance;
 		
 		return currentSample;
+	}
+
+	virtual void NoteOff() {
+		playing = false;
+		currentEnvelope.state = EnvelopeState::Releasing;
 	}
 
 	/// <summary>
