@@ -16,20 +16,20 @@ class MoiseSynth {
 
 protected:
 	Envelope currentEnvelope = {}; //Current envelope for this synth.
-	double currentTime; //The current time in seconds of the synth's active voice.
+	double currentTime = 0; //The current time in seconds of the synth's active voice.
 	float currentSample[2]; //Stores up to 2 channels of audio data for each sample taken from the synth.
 	float frequency = 440; //The current frequency of playback, determined by the value of the NoteOn command.
 	float pan = 0.5; //The sterep pan of the synth.
 	double currentPosition = 0; //The current playback position of the synth's active voice.
-	float currentEnvelopePosition; //The current position in the synth's envelope. NOTE: Envelopes are not yet implemented.
-	float currentEnvelopeValue; //The current value of the envelope.
-	int currentSamplePosition; //The current sample position of the synth's active voice when the synth uses a sample.
-	int currentValue; //The current enum value of the note being played.
-	int sampleRate; //The base sample rate of the sample.
-	int channels; //The number of audio channels being used (1 = mono, 2 = stereo)
-	bool playing; //Whether or not the synth is currently playing (Does not include if this synth is off but still producing audio, such as when the envelope is finishing after a NoteOff command).
-	bool active; //True if this synth is producing any audio at all.
-	bool initialized; //Whether or not the synth has been initialized.
+	float currentEnvelopePosition = 0; //The current position in the synth's envelope. NOTE: Envelopes are not yet implemented.
+	float currentEnvelopeValue = 0; //The current value of the envelope.
+	int currentSamplePosition = 0; //The current sample position of the synth's active voice when the synth uses a sample.
+	int currentValue = 0; //The current enum value of the note being played.
+	int sampleRate = 48000; //The sample rate of the synth.
+	int channels = false; //The number of audio channels being used (1 = mono, 2 = stereo)
+	bool playing = false; //Whether or not the synth is currently playing (Does not include if this synth is off but still producing audio, such as when the envelope is finishing after a NoteOff command).
+	bool active = false; //True if this synth is producing any audio at all.
+	bool initialized = false; //Whether or not the synth has been initialized.
 
 public:
 	MoiseSynth() {
