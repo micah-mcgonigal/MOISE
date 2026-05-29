@@ -13,6 +13,9 @@ float MoiseSynth::stepHz = _CMATH_::pow(2.0, 1.0 / 12.0);
 //Loaded synth instances
 std::vector<std::unique_ptr<MoiseSynth>> synths = {};
 
+//Loaded instrument presets
+std::vector<MOISE_SamplePlayer_Instrument> samplePlayerInstruments = {};
+
 //The currently loaded composition.
 Composition currentComposition;
 
@@ -108,6 +111,7 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 			std::cerr << "LoadPackageFromFile: No default envelope found in instrument " << instrumentJson.dump() << std::endl;
 			continue;
 		}
+
 		Envelope defaultEnvelope = instrumentJson.at("defaultEnvelope").get<Envelope>();
 
 		// Get sample bank
@@ -122,37 +126,23 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 			continue;
 		}
 
-		// Create new sample player synth for instrument
-		synths.push_back(std::make_unique<MoiseSynth_SamplePlayer>());
-		MoiseSynth_SamplePlayer* samplePlayerSynth = static_cast<MoiseSynth_SamplePlayer*>(synths.back().get());
-		if (!samplePlayerSynth) {
-			std::cerr << "LoadPackageFromFile: Unable to create sample player for instrument " << instrumentJson.dump() << std::endl;
-			continue;
-		}
+		MOISE_SamplePlayer_Instrument newInstrument;
 
-		// Set default envelope
-		samplePlayerSynth->SetDefaultEnvelope(defaultEnvelope);
-
-		// Load samples into bank
-		for (const auto& sampleJson : sampleBankJson) {
+		// Load samples into this instrument's sample bank
+		for (const auto &sampleJson : sampleBankJson) {
 			MOISE_SamplePlayer_Sample sampleData = sampleJson.get<MOISE_SamplePlayer_Sample>();
-			samplePlayerSynth->LoadSampleIntoBank(sampleData, sampleBankIn);
+			MoiseSynth_SamplePlayer::LoadSampleIntoBank(sampleData, newInstrument, sampleBankIn);
 		}
 
-		// Initialize sample player
-		samplePlayerSynth->Initialize(sampleRate, 2);
-	}
+		newInstrument.defaultEnvelope = defaultEnvelope;
 
-	// --------
-	// Test synth
-
-	// TODO: Assign test synth more meaningfully -- currently we just take the first available synth
-	if (synths.size() <= 0) {
-		std::cout << "LoadPackageFromFile: No synths loaded!" << std::endl;
+		samplePlayerInstruments.push_back(std::move(newInstrument));
 	}
 
 	// --------
 	//Load composition data from the package JSON
+	int totalTracks = 0;
+
 	if (!jsonData.contains("songs")) {
 		std::cerr << "LoadPackageFromFile: No songs contained in JSON data at " << packagePath << std::endl;
 		return 1;
@@ -177,8 +167,26 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 
 			currentComposition = compositionJson.get<Composition>();
 			compositionReady = true;
+			totalTracks = max(totalTracks, currentComposition.tracks.size());
+		}
+	}
+
+	//Create a synth for each track
+	if (samplePlayerInstruments.size() <= 0) {
+		std::cerr << "LoadPackageFromFile: Instruments were loaded, thereform no synths can be loaded. " << std::endl;
+		return 1;
+	}
+
+	for (int i = 0; i < totalTracks; i++) {
+		synths.push_back(std::make_unique<MoiseSynth_SamplePlayer>());
+		MoiseSynth_SamplePlayer *samplePlayerSynth = static_cast<MoiseSynth_SamplePlayer *>(synths.back().get());
+		if (!samplePlayerSynth) {
+			std::cerr << "LoadPackageFromFile: Unable to create sample player for track " << i << std::endl;
+			continue;
 		}
 
+		// Initialize sample player
+		samplePlayerSynth->Initialize(sampleRate, samplePlayerInstruments[0], 2);
 	}
 
 	// --------
@@ -613,11 +621,21 @@ int FillWaveformData(float data[], int sampleTotal, int channels) {
 				}
 			}
 
-			//Get waveform data from active synths for this sample. Currently, only one synth is supported for testing purposes. This is to be a loop through all active synths in the future.
-			if (synths.size() > 0) {
-				float *newSample = synths[0]->GetNextSample(timeAdvance);
+			//Reset the current samples in all channels
+			for (int j = 0; j < channels; j++) {
+				data[i + j] = 0;
+			}
+
+			//Get waveform data from active synths for this sample.
+			for (int t = 0; t < synths.size(); t++) {
+				float *newSample = synths[t]->GetNextSample(timeAdvance);
+
+				if (newSample == nullptr) {
+					return -2;
+				}
+
 				for (int j = 0; j < channels; j++) {
-					data[i + j] = newSample[j];
+					data[i + j] += newSample[j];
 				}
 			}
 

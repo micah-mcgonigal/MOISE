@@ -46,6 +46,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	waveformChunkStart,
 	name)
 
+
+struct MOISE_SamplePlayer_Instrument : MOISE_Instrument {
+	std::vector<MOISE_SamplePlayer_Sample> sampleBank = {}; //Sample bank representing this instrument.
+};
 /// <summary>
 /// A sample bank represents a collection of samples that can be used depending on the note being played. For example, a piano sample bank may contain different samples for each octave of the piano keyboard.
 /// This is not yet implemented.
@@ -60,7 +64,7 @@ struct MOISE_SamplePlayer_SampleBank {
 class MoiseSynth_SamplePlayer : public MoiseSynth {
 
 private:
-	std::vector<MOISE_SamplePlayer_Sample> sampleBank = {}; //Sample bank for this sample player.
+	MOISE_SamplePlayer_Instrument currentInstrument; //The instrument preset currently loaded in this sample player.
 
 public:
 	int activeSampleId = 0; //The ID of the sample to use for when sample banks are in use. Currently this corresponds to an index into the sample bank.
@@ -72,24 +76,12 @@ public:
 	MoiseSynth_SamplePlayer() {}
 
 	/// <summary>
-	/// Loads sample data from memory when creating an instance of the sample player synth.
-	/// </summary>
-	/// <param name="data">Sample data pointer</param>
-	/// <param name="waveformSampleCount">The number of samples in the provided sample data waveform</param>
-	MoiseSynth_SamplePlayer(MOISE_SamplePlayer_Sample* data, int waveformSampleCount) {
-		sampleBank.push_back(*data);
-		
-		//for (int i = 0; i < waveformSampleCount; i++) {
-		//	sampleData.waveform[i] = -1 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1 - -1)));
-		//}
-	}
-
-	/// <summary>
-	/// Load a sample into this sample player's sample bank.
-	/// </summary>
-	/// <param name="inSampleData">The sample data that defines the sample.</param>
-	/// <param name="inSampleBankFileStream">The input file stream that holds the sample bank's waveform data.</param>
-	void LoadSampleIntoBank(const MOISE_SamplePlayer_Sample& inSampleData, std::ifstream& inSampleBankFileStream) {
+/// Load a sample into an instrument's sample bank.
+/// </summary>
+/// <param name="inSampleData">The sample data that defines the sample.</param>
+/// <param name="inInstrument">The instrument whose bank we want to add this sample to.</param>
+/// <param name="inSampleBankFileStream">The input file stream that holds the sample bank's waveform data.</param>
+	static void LoadSampleIntoBank(const MOISE_SamplePlayer_Sample &inSampleData, MOISE_SamplePlayer_Instrument &inInstrument, std::ifstream &inSampleBankFileStream) {
 		// --------
 		// Copy sample data
 
@@ -105,12 +97,12 @@ public:
 		sampleData.waveform.resize(sampleData.waveformLength);
 
 		// Load waveform file's data into our waveform buffer
-		if (!inSampleBankFileStream.read(reinterpret_cast<char*>(sampleData.waveform.data()), sampleData.waveformLength * sizeof(float))) {
+		if (!inSampleBankFileStream.read(reinterpret_cast<char *>(sampleData.waveform.data()), sampleData.waveformLength * sizeof(float))) {
 			std::cerr << "MoiseSynth_SamplePlayer: Failed to load sample waveform data at waveformChunkStart " << sampleData.waveformChunkStart << std::endl;
 		}
 
 		// Add sample to bank
-		sampleBank.push_back(sampleData);
+		inInstrument.sampleBank.push_back(sampleData);
 	}
 
 	/// <summary>
@@ -118,9 +110,11 @@ public:
 	/// </summary>
 	/// <param name="setSampleRate">The sample rate of the synth</param>
 	/// <param name="setChannels">The number of channels of the synth</param>
-	void Initialize(int setSampleRate, int setChannels) {
+	void Initialize(int setSampleRate, MOISE_SamplePlayer_Instrument &defaultInstrument, int setChannels) {
 		sampleRate = setSampleRate;
 		channels = setChannels;
+		currentInstrument = defaultInstrument;
+		ResetEnvelope(currentInstrument);
 		initialized = true;
 	}
 
@@ -130,12 +124,12 @@ public:
 	/// <param name="sampleIndex">The sample index to check</param>
 	/// <returns></returns>
 	float GetWaveformValue(int sampleIndex) override {
-		if (sampleBank.size() < 1) {
+		if (currentInstrument.sampleBank.size() < 1) {
 			return 0.f;
 		}
 
 		//Get active sample data
-		const MOISE_SamplePlayer_Sample& sampleData = sampleBank[activeSampleId];
+		const MOISE_SamplePlayer_Sample& sampleData = currentInstrument.sampleBank[activeSampleId];
 
 		if (sampleData.waveform.size() <= sampleIndex) {
 			return 0.f;
@@ -212,7 +206,7 @@ public:
 	/// <param name="timeAdvance">The amount of time to advance.</param>
 	/// <returns>A pointer to the next sample</returns>
 	virtual float* GetNextSample(double timeAdvance) override {
-		if (sampleBank.size() < 1) {
+		if (currentInstrument.sampleBank.size() < 1) {
 			return nullptr;
 		}
 
@@ -221,7 +215,7 @@ public:
 		if (active) {
 
 			//Get active sample data
-			const MOISE_SamplePlayer_Sample &sampleData = sampleBank[activeSampleId];
+			const MOISE_SamplePlayer_Sample &sampleData = currentInstrument.sampleBank[activeSampleId];
 
 			//Get a sample from the waveform data at the currentSamplePosition.
 			float centerSample = GetInterpolatedSampleAtCurrentPosition(sampleData);
@@ -260,10 +254,10 @@ public:
 		MoiseSynth::NoteOn(value);
 
 		//Update the sample being used based on the current frequency
-		for (int i = 0; i < sampleBank.size(); i++) {
+		for (int i = 0; i < currentInstrument.sampleBank.size(); i++) {
 			activeSampleId = i;
 
-			if (sampleBank[i].minFrequency < frequency && sampleBank[i].maxFrequency >= frequency) {
+			if (currentInstrument.sampleBank[i].minFrequency < frequency && currentInstrument.sampleBank[i].maxFrequency >= frequency) {
 				break;
 			}
 		}

@@ -5,12 +5,16 @@
 #define MOISE_SYNTH_H
 
 //Base class for MOISE synthesizers.
+
+struct MOISE_Instrument {
+	Envelope defaultEnvelope = {}; //Default envelope for this instrument.
+};
+
 class MoiseSynth {
 	//stepHz is a constant used to calculate the frequency of a note based on its MOISE_Note value
 	static float stepHz;
 
 protected:
-	Envelope defaultEnvelope = {}; //Default envelope for this synth.
 	Envelope currentEnvelope = {}; //Current envelope for this synth.
 	double currentTime; //The current time in seconds of the synth's active voice.
 	float currentSample[2]; //Stores up to 2 channels of audio data for each sample taken from the synth.
@@ -55,9 +59,8 @@ public:
 	/// Set the default envelope for this synth.
 	/// </summary>
 	/// <param name="inEnvelope">The default envelope</param>
-	void SetDefaultEnvelope(const Envelope &inEnvelope) {
-		defaultEnvelope = inEnvelope;
-		currentEnvelope = defaultEnvelope;
+	void ResetEnvelope(MOISE_Instrument instrument) {
+		currentEnvelope = instrument.defaultEnvelope;
 	}
 
 	//Updates the envelope based on the number of ticks this update.
