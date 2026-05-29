@@ -109,7 +109,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 struct Song {
 	std::string id;
 	std::vector<Composition> compositions;
-	int defaultBpm;
+	float defaultBpm;
+	int ticksPerBeat;
 };
 
 //This allows us to deserialize JSON directly into our Song struct
@@ -117,7 +118,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	Song,
 	id,
 	compositions,
-	defaultBpm)
+	defaultBpm,
+	ticksPerBeat)
 
 	enum EnvelopeState {Attacking, AttackDecaying, SustainDecaying, Releasing};
 

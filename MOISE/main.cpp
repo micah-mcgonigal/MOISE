@@ -16,7 +16,10 @@ std::vector<std::unique_ptr<MoiseSynth>> synths = {};
 //Loaded instrument presets
 std::vector<MOISE_SamplePlayer_Instrument> samplePlayerInstruments = {};
 
+//All songs loaded from a MOISE package
 std::vector<Song> songs = {};
+//The currently loaded song.
+Song currentSong;
 //The currently loaded composition.
 Composition currentComposition;
 
@@ -212,6 +215,7 @@ bool Play() {
 bool Play(const char *songId) {
 	for (int i = 0; i < songs.size(); i++) {
 		if (songs[i].id == songId && songs[i].compositions.size() > 0) {
+			currentSong = songs[i];
 			currentComposition = songs[i].compositions[0];
 			compositionReady = true;
 			return Play();
@@ -226,7 +230,7 @@ void Stop() {
 	playing = false;
 	preciseTick = 0;
 	currentTick = -1;
-
+	
 	for (int i = 0; i < currentCommandIndexPerTrack.size(); i++) {
 		currentCommandIndexPerTrack[i] = 0;
 	}
@@ -612,7 +616,7 @@ int FillWaveformData(float data[], int sampleTotal, int channels) {
 		for (int i = 0; i < sampleTotal; i += channels) {
 
 			//Advance the current tick and check for any new commands to process
-			preciseTick += timeAdvance * 64; // Assuming 60 ticks per second for simplicity NOTE: the "* 64" is to speed up the playback for testing purposes.
+			preciseTick += timeAdvance * (currentSong.defaultBpm / 60) * currentSong.ticksPerBeat;
 
 			//Advance one tick at a time to make sure all commands are processed
 			while (currentTick < std::floor(preciseTick)) {
