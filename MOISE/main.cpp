@@ -16,6 +16,7 @@ std::vector<std::unique_ptr<MoiseSynth>> synths = {};
 //Loaded instrument presets
 std::vector<MOISE_SamplePlayer_Instrument> samplePlayerInstruments = {};
 
+std::vector<Song> songs = {};
 //The currently loaded composition.
 Composition currentComposition;
 
@@ -151,23 +152,16 @@ int LoadPackageFromFile(char* packagePath, char* sampleBankPath) {
 	std::vector<json> songsJson = jsonData.at("songs").get<std::vector<json>>();
 
 	for (const auto &songJson : songsJson) { //Load all songs in the package
-		// For testing purposes, we will just load the first composition of the first song
 		if (!songJson.contains("compositions")) {
 			std::cerr << "LoadPackageFromFile: No compositions contained in song " << songJson.dump() << std::endl;
 			continue;
 		}
 
-		std::vector<json> compositionsJson = songJson.at("compositions").get<std::vector<json>>();
+		Song songData = songJson.get<Song>();
+		songs.push_back(songData);
 
-		for (const auto &compositionJson : compositionsJson) {
-			if (!compositionJson.contains("tracks")) {
-				std::cerr << "LoadPackageFromFile: No tracks contained in composition " << compositionJson.dump() << std::endl;
-				continue;
-			}
-
-			currentComposition = compositionJson.get<Composition>();
-			compositionReady = true;
-			totalTracks = max(totalTracks, currentComposition.tracks.size());
+		for (int i = 0; i < songData.compositions.size(); i++) {
+			totalTracks = max(totalTracks, songData.compositions[i].tracks.size());
 		}
 	}
 
@@ -210,14 +204,36 @@ bool Play() {
 		std::cerr << "No composition is loaded and so playback cannot begin." << std::endl;
 		return false;
 	}
+	Stop();
 	playing = true;
 	return true;
+}
+
+bool Play(const char *songId) {
+	for (int i = 0; i < songs.size(); i++) {
+		if (songs[i].id == songId && songs[i].compositions.size() > 0) {
+			currentComposition = songs[i].compositions[0];
+			compositionReady = true;
+			return Play();
+		}
+	}
+
+	std::cerr << "No song found with ID " << songId << std::endl;
+	return false;
 }
 
 void Stop() {
 	playing = false;
 	preciseTick = 0;
 	currentTick = -1;
+
+	for (int i = 0; i < currentCommandIndexPerTrack.size(); i++) {
+		currentCommandIndexPerTrack[i] = 0;
+	}
+
+	for (int i = 0; i < synths.size(); i++) {
+		synths[i]->Stop();
+	}
 }
 
 int GetNextCallbackInQueue(char *callback, int capacity) {

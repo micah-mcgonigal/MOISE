@@ -107,13 +107,17 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 
 //A song stores a vector of compositions
 struct Song {
+	std::string id;
 	std::vector<Composition> compositions;
+	int defaultBpm;
 };
 
 //This allows us to deserialize JSON directly into our Song struct
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
 	Song,
-	compositions)
+	id,
+	compositions,
+	defaultBpm)
 
 	enum EnvelopeState {Attacking, AttackDecaying, SustainDecaying, Releasing};
 

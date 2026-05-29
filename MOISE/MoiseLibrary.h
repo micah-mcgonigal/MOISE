@@ -14,7 +14,7 @@ extern "C" EXPORT int LoadPackage(Track* trackToLoad);
 
 extern "C" EXPORT int LoadPackageFromFile(char* packagePath, char* sampleBankPath);
 
-extern "C" EXPORT bool Play();
+extern "C" EXPORT bool Play(const char *songId);
 
 extern "C" EXPORT void Stop();
 
